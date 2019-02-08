@@ -197,6 +197,28 @@ func Clone(remotepath string, repopath string, clonechan chan<- RepoFileStatus) 
 	return
 }
 
+// Pull downloads changes to small (git) files from the server.
+// (git pull)
+func Pull(remote string, pullchan chan<- RepoFileStatus) {
+	defer close(pullchan)
+	if IsDirect() {
+		// Set bare false and revert at the end of the function
+		err := setBare(false)
+		if err != nil {
+			pullchan <- RepoFileStatus{Err: fmt.Errorf("failed to toggle repository bare mode")}
+			return
+		}
+		defer setBare(true)
+	}
+
+	cmd := Command("pull", "--progress", "--ff-only", remote)
+	err := cmd.Start()
+	if err != nil {
+		pullchan <- RepoFileStatus{Err: err}
+	}
+	return
+}
+
 // Push uploads all small (git) files to the server.
 // (git push)
 func Push(remote string, pushchan chan<- RepoFileStatus) {
