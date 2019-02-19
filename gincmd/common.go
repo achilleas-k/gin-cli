@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	ginclient "github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/log"
@@ -148,29 +149,54 @@ func printProgressWithBar(statuschan <-chan git.RepoFileStatus, nitems int) (fil
 			outline.WriteString(" ")
 		}
 	}
-	for stat := range statuschan {
-		ncomplt++
-		outline.Reset()
-		outline.WriteString(" ")
-		outappend(stat.State)
-		outappend(stat.FileName)
-		if stat.Err == nil {
-			if stat.Progress == "100%" {
-				outappend(green("OK"))
-				filesuccess[stat.FileName] = true
+
+	spinner := []string{"-", "\\", "|", "/"}
+	var progressbar string
+Outloop:
+	for c := 0; ; c++ {
+		time.Sleep(100 * time.Millisecond)
+		select {
+		case stat, ok := <-statuschan:
+			if !ok {
+				// operation finished
+				break Outloop
 			}
-		} else {
-			outappend(stat.Err.Error())
-			filesuccess[stat.FileName] = false
+			ncomplt++
+			outline.Reset()
+			outline.WriteString(" ")
+			outappend(stat.State)
+			outappend(stat.FileName)
+			if stat.Err == nil {
+				if stat.Progress == "100%" {
+					outappend(green("OK"))
+					filesuccess[stat.FileName] = true
+				}
+			} else {
+				outappend(stat.Err.Error())
+				filesuccess[stat.FileName] = false
+			}
+			newprint := outline.String()
+			fmt.Printf("\r%s\r", strings.Repeat(" ", linewidth)) // clear the line
+			fmt.Fprint(color.Output, newprint)
+			complsigns := int(math.Floor(float64(ncomplt) * barratio))
+			blocks := strings.Repeat("=", complsigns)
+			blanks := strings.Repeat(" ", barwidth-complsigns)
+			dprg := fmt.Sprintf(dfmt, ncomplt, nitems)
+			progressbar = fmt.Sprintf("[%s%s] %s", blocks, blanks, dprg)
+			fmt.Printf("\n %s\r", progressbar)
+		default:
+			fmt.Printf("\r%s\r", strings.Repeat(" ", linewidth)) // clear the line
+			complsigns := int(math.Floor(float64(ncomplt) * barratio))
+			blocks := ""
+			if complsigns > 1 {
+				blocks = strings.Repeat("=", complsigns-1)
+			}
+			blanks := strings.Repeat(" ", barwidth-complsigns)
+			dprg := fmt.Sprintf(dfmt, ncomplt, nitems)
+			progressbar = fmt.Sprintf("[%s%s%s] %s", blocks, spinner[c%len(spinner)], blanks, dprg)
+			fmt.Printf(" %s\r", progressbar)
+			// fmt.Printf(" %s %c\r", progressbar, spinner[c%4])
 		}
-		newprint := outline.String()
-		fmt.Printf("\r%s\r", strings.Repeat(" ", linewidth)) // clear the line
-		fmt.Fprint(color.Output, newprint)
-		complsigns := int(math.Floor(float64(ncomplt) * barratio))
-		blocks := strings.Repeat("=", complsigns)
-		blanks := strings.Repeat(" ", barwidth-complsigns)
-		dprg := fmt.Sprintf(dfmt, ncomplt, nitems)
-		fmt.Printf("\n [%s%s] %s\r", blocks, blanks, dprg)
 	}
 	if outline.Len() > 0 {
 		fmt.Println()
