@@ -264,14 +264,7 @@ func verboseOutput(statuschan <-chan git.RepoFileStatus) (filesuccess map[string
 			fmt.Printf("Running Command: %v\n", stat.RawInput)
 			tmprawin = stat.RawInput
 		}
-		//File Name
-		if stat.FileName != tmpfname {
-			fmt.Printf("File: %v\n", stat.FileName)
-			tmpfname = stat.FileName
-		}
-		//Raw Output
-		ro = stat.RawOutput
-		fmt.Printf("%s", ro)
+		fmt.Print(stat.RawOutput)
 	}
 	fmt.Println()
 	return
