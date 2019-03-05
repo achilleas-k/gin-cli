@@ -20,6 +20,7 @@ func commit(cmd *cobra.Command, args []string) {
 
 	paths := args
 	if len(paths) > 0 {
+		fmt.Println(":: Adding file changes")
 		addchan := make(chan git.RepoFileStatus)
 		go ginclient.Add(paths, addchan)
 		formatOutput(addchan, prStyle, 0)
@@ -32,7 +33,7 @@ func commit(cmd *cobra.Command, args []string) {
 	var stat string
 	if err != nil {
 		if err.Error() == "Nothing to commit" {
-			stat = "N/A\n:: No changes recorded"
+			stat = "\n   No changes recorded"
 		} else {
 			Die(err)
 		}
