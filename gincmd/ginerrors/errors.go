@@ -8,5 +8,5 @@ const (
 	RequiresLogin = "this operation requires login"
 
 	// BadPort is returned when a port number is outside the valid range (1..65535)
-	BadPort = "port must be between 0 and 65535 (inclusive)"
+	BadPort = "port must be between 1 and 65535 (inclusive)"
 )
