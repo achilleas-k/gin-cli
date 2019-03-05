@@ -306,7 +306,7 @@ func AnnexPush(paths []string, remote string, pushchan chan<- RepoFileStatus) {
 			status.RawOutput = string(outline)
 			lineInput := cmd.Args
 			input := strings.Join(lineInput, " ")
-			status.RawInput = input
+			status.Command = input
 			pushchan <- status
 			continue
 		}
@@ -325,7 +325,7 @@ func AnnexPush(paths []string, remote string, pushchan chan<- RepoFileStatus) {
 			status.FileName = getresult.File
 			lineInput := cmd.Args
 			input := strings.Join(lineInput, " ")
-			status.RawInput = input
+			status.Command = input
 			if getresult.Success {
 				status.Progress = progcomplete
 				status.Err = nil
@@ -410,7 +410,7 @@ func AnnexGet(filepaths []string, getchan chan<- RepoFileStatus) {
 		}
 		lineInput := cmd.Args
 		input := strings.Join(lineInput, " ")
-		status.RawInput = input
+		status.Command = input
 
 		if !JsonBool {
 			status.RawOutput = string(outline)
@@ -496,7 +496,7 @@ func AnnexDrop(filepaths []string, dropchan chan<- RepoFileStatus) {
 	var rerr error
 	lineInput := cmd.Args
 	input := strings.Join(lineInput, " ")
-	status.RawInput = input
+	status.Command = input
 	for rerr = nil; rerr == nil; line, rerr = cmd.OutReader.ReadString('\n') {
 		line = strings.TrimSpace(line)
 		if len(line) == 0 {
@@ -698,7 +698,7 @@ func AnnexUnlock(filepaths []string, unlockchan chan<- RepoFileStatus) {
 	var unlockres annexAction
 	lineInput := cmd.Args
 	input := strings.Join(lineInput, " ")
-	status.RawInput = input
+	status.Command = input
 	for rerr = nil; rerr == nil; outline, rerr = cmd.OutReader.ReadBytes('\n') {
 		status.RawOutput = string(outline)
 		if len(outline) == 0 {
@@ -856,7 +856,7 @@ func annexAddCommon(filepaths []string, update bool, addchan chan<- RepoFileStat
 			status.RawOutput = string(outline)
 			lineInput := cmd.Args
 			input := strings.Join(lineInput, " ")
-			status.RawInput = input
+			status.Command = input
 			addchan <- status
 			continue
 		}
@@ -871,7 +871,7 @@ func annexAddCommon(filepaths []string, update bool, addchan chan<- RepoFileStat
 		status.FileName = addresult.File
 		lineInput := cmd.Args
 		input := strings.Join(lineInput, " ")
-		status.RawInput = input
+		status.Command = input
 		status.RawOutput = string(outline)
 		if addresult.Success {
 			log.Write("%s added to annex", addresult.File)

@@ -256,13 +256,12 @@ func printProgressOutput(statuschan <-chan git.RepoFileStatus) (filesuccess map[
 
 func verboseOutput(statuschan <-chan git.RepoFileStatus) (filesuccess map[string]bool) {
 	filesuccess = make(map[string]bool)
-	var ro string
-	var tmprawin, tmpfname string
+	var lastcmd string
 	for stat := range statuschan {
-		//Raw Input
-		if stat.RawInput != tmprawin {
-			fmt.Printf("Running Command: %v\n", stat.RawInput)
-			tmprawin = stat.RawInput
+		// Print the full (internal) command when it changes
+		if stat.Command != lastcmd {
+			fmt.Printf("Running command: %v\n", stat.Command)
+			lastcmd = stat.Command
 		}
 		fmt.Print(stat.RawOutput)
 	}

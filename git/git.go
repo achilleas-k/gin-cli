@@ -29,6 +29,8 @@ type giterror = shell.Error
 
 // RepoFileStatus describes the status of files when being added to the repo or transferred to/from remotes.
 type RepoFileStatus struct {
+	// The shell command being executed.
+	Command string `json:"command"`
 	// The name of the file.
 	FileName string `json:"filename"`
 	// The state of the operation.
@@ -37,9 +39,7 @@ type RepoFileStatus struct {
 	Progress string `json:"progress"`
 	// The data rate, if available.
 	Rate string `json:"rate"`
-	// original cmd input
-	RawInput string `json:"rawinput"`
-	// original command output
+	// The unprocessed command output.
 	RawOutput string `json:"rawoutput"`
 	// Errors
 	Err error
@@ -142,7 +142,7 @@ func Clone(remotepath string, repopath string, clonechan chan<- RepoFileStatus) 
 	var eob, eof bool
 	lineInput := cmd.Args
 	input := strings.Join(lineInput, " ")
-	status.RawInput = input
+	status.Command = input
 	// git clone progress prints to stderr
 	for eof = false; !eof; nread, rerr = cmd.ErrReader.Read(readbuffer) {
 		if rerr != nil && errhead == len(stderr) {
@@ -232,7 +232,7 @@ func Push(remote string, pushchan chan<- RepoFileStatus) {
 	re := regexp.MustCompile(`(?P<state>Compressing|Writing) objects:\s+(?P<progress>[0-9]{2,3})% \((?P<n>[0-9]+)/(?P<N>[0-9]+)\)`)
 	lineInput := cmd.Args
 	input := strings.Join(lineInput, " ")
-	status.RawInput = input
+	status.Command = input
 	for rerr = nil; rerr == nil; line, rerr = cmd.ErrReader.ReadString('\r') {
 		if !re.MatchString(line) {
 			continue
@@ -285,7 +285,7 @@ func Add(filepaths []string, addchan chan<- RepoFileStatus) {
 	var rerr error
 	lineInput := cmd.Args
 	input := strings.Join(lineInput, " ")
-	status.RawInput = input
+	status.Command = input
 	for rerr = nil; rerr == nil; line, rerr = cmd.OutReader.ReadString('\n') {
 		fname := strings.TrimSpace(line)
 		status.RawOutput = line
