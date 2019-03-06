@@ -1,6 +1,9 @@
 version: '{build}'
 build: off
 
+services:
+  - docker
+
 clone_folder: C:\gopath\src\github.com\G-Node\gin-cli
 
 stack: go 1.11
@@ -25,6 +28,12 @@ install:
   - go version
   - go env
   - go get -u github.com/golang/lint/golint
+  # set up local server (in docker)
+  - docker pull gnode/ginhome
+  - xcopy /e /s /y /i tests\gin-data.init %userprofile%\srvdataa
+  - docker run --rm -v %userprofile%\srvdataa:/data -p 3000:3000 -p 2222:22 --name gintestserver -d gnode/ginhome
+  - xcopy /e /s /y /i tests\gin-data.init %userprofile%\srvdatab
+  - docker run --rm -v %userprofile%\srvdatab:/data -p 4000:3000 -p 2424:22 --name gintestserverb -d gnode/ginhome
 
 build_script:
   - cd %SRCDIR%
