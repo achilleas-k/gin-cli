@@ -182,7 +182,7 @@ func printProgressWithBar(statuschan <-chan git.RepoFileStatus, nitems int) (fil
 		printed = true
 	}
 	if !printed {
-		fmt.Println("   Nothing to do")
+		fmt.Fprintf(color.Output, yellow("Nothing to do"))
 	}
 	if outline.Len() > 0 {
 		fmt.Println()
@@ -208,9 +208,7 @@ func printProgressOutput(statuschan <-chan git.RepoFileStatus) (filesuccess map[
 		outline.WriteString(" ")
 		if stat.FileName != fname || stat.State != state {
 			// New line if new file or new state
-			if len(lastprint) > 0 {
-				fmt.Println()
-			}
+			fmt.Println("")
 			lastprint = ""
 			fname = stat.FileName
 			state = stat.State
@@ -240,7 +238,7 @@ func printProgressOutput(statuschan <-chan git.RepoFileStatus) (filesuccess map[
 		}
 	}
 	if !printed {
-		fmt.Println("   Nothing to do")
+		fmt.Fprintln(color.Output, yellow(" Nothing to do"))
 	}
 	if len(lastprint) > 0 {
 		fmt.Println()

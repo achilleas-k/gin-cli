@@ -24,32 +24,34 @@ func commit(cmd *cobra.Command, args []string) {
 	paths := args
 	if len(paths) > 0 {
 		if prStyle == psDefault {
-			fmt.Println(":: Adding file changes")
+			fmt.Print(":: Adding file changes")
 		}
 		addchan := make(chan git.RepoFileStatus)
 		go ginclient.Add(paths, addchan)
 		formatOutput(addchan, prStyle, 0)
 	}
 
-	if prStyle == psDefault {
-		fmt.Print(":: Recording changes ")
-	}
 	if commitmsg == "" {
 		commitmsg = makeCommitMessage("commit", paths)
+	}
+	if prStyle == psDefault {
+		fmt.Print(":: Recording changes ")
 	}
 	err := git.Commit(commitmsg)
 	var stat string
 	if err != nil {
-		if err.Error() == "Nothing to commit" {
-			stat = "\n   No changes recorded"
-		} else {
+		if err.Error() != "Nothing to commit" {
 			Die(err)
 		}
+		stat = yellow(err.Error())
+		commitmsg = ""
 	} else {
 		stat = green("OK")
+		commitmsg = fmt.Sprintf("Commit message:\n%s", wouter.Wrap(commitmsg, termwidth()))
 	}
 	if prStyle == psDefault {
 		fmt.Fprintln(color.Output, stat)
+		fmt.Print(commitmsg)
 	}
 }
 
