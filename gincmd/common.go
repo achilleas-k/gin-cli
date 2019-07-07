@@ -192,6 +192,13 @@ func printProgressWithBar(statuschan <-chan git.RepoFileStatus, nitems int) (fil
 	ncompleted := 0
 	for stat := range statuschan {
 		ncompleted++
+		if ncompleted > nitems {
+			// Item count was wrong somehow
+			// BUG: Not sure when this occurs, but it's been happening in the
+			// CI environment for some remove-content calls and I haven't been
+			// able to reproduce - AK, 2019-07-07
+			nitems = ncompleted
+		}
 		outline.Reset()
 		outline.WriteString(" ")
 		outappend(stat.State)
