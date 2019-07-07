@@ -55,15 +55,13 @@ script:
       if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
           ./tests/start-server;
           while ! curl localhost:3000 -so /dev/null; do sleep 1; done;
-          ./tests/run-all-tests;
+          python3 -m pytest -vx;
       else
-          pushd tests;
           python3 -m pytest -vk "offline";
-          popd;
       fi;
     fi
 
 after_failure:
   # upload logs to gist.github.com
   - pip3 install requests
-  - python3 ./tests/scripts/pushtogist.py ./tests/log
+  - python3 ./tests/scripts/pushtogist.py tests/log
