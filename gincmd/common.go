@@ -165,8 +165,13 @@ func printProgressWithBar(statuschan <-chan git.RepoFileStatus, nitems int) (fil
 			return 0
 		}
 		barratio := float64(fullbarwidth) / float64(nitems)
+		println("completed", completed)
+		println("fullbarwidth", fullbarwidth)
+		println("barratio", barratio)
+		println("nitems", nitems)
 
 		complsigns := int(math.Floor(float64(completed) * barratio))
+		println("complsigns", complsigns)
 		blocks := strings.Repeat("=", complsigns)
 		blanks := strings.Repeat(" ", fullbarwidth-complsigns)
 		dprg := fmt.Sprintf(dfmt, completed, nitems)
