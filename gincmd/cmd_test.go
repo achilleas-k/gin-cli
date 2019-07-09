@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -14,8 +15,52 @@ import (
 	"github.com/G-Node/gin-cli/git"
 )
 
+const testalias = "test"
+
+func zerostatus() map[ginclient.FileStatus]int {
+	return map[ginclient.FileStatus]int{
+		ginclient.Synced:       0,
+		ginclient.TypeChange:   0,
+		ginclient.NoContent:    0,
+		ginclient.Modified:     0,
+		ginclient.LocalChanges: 0,
+		ginclient.Removed:      0,
+		ginclient.Untracked:    0,
+	}
+}
+
+// makeRandFile creates a random binary file with a given name and size in
+// kilobytes
+func makeRandFile(name string, size uint64) {
+	file, err := os.Create(name)
+	CheckError(err)
+	buf := make([]byte, 1024)
+	for count := uint64(0); count < size; count++ {
+		_, err = rand.Read(buf)
+		CheckError(err)
+		file.Write(buf)
+	}
+}
+
+func assertStatus(path string, expected map[ginclient.FileStatus]int) {
+	gincl := ginclient.New(testalias)
+	filestatus, err := gincl.ListFiles(path)
+	CheckError(err)
+
+	// collect status counts
+	actual := zerostatus()
+	for _, status := range filestatus {
+		actual[status]++
+	}
+
+	for status := range expected {
+		if actual[status] != expected[status] {
+			os.Exit(1) // TODO: Print useful error
+		}
+	}
+}
+
 func addTestServer() {
-	alias := "test"
 
 	webstring := "http://localhost:3000"
 	gitstring := "git@localhost:2222"
@@ -34,14 +79,14 @@ func addTestServer() {
 	serverConf.Git.HostKey = hostkeystr
 
 	// Save to config
-	err = config.AddServerConf(alias, serverConf)
+	err = config.AddServerConf(testalias, serverConf)
 	CheckError(err)
 
 	// Recreate known hosts file
 	err = git.WriteKnownHosts()
 	CheckError(err)
 
-	err = ginclient.SetDefaultServer(alias)
+	err = ginclient.SetDefaultServer(testalias)
 	CheckError(err)
 }
 
@@ -123,12 +168,29 @@ func TestStuff(t *testing.T) {
 	os.Chdir(tmpworkdir)
 	loginTestuser()
 	reponame := createTestRepository()
-	dir, _ := os.Getwd()
-	fmt.Printf("I AM IN %s\n", dir)
-	fmt.Printf("Deleting %s\n", reponame)
+	// dir, _ := os.Getwd()
 	defer deleteRepository(reponame)
 
-	time.Sleep(30 * time.Second)
-	fmt.Printf("Created repository %s\n", reponame)
+	// TODO: port test_all_states
+	filestatus := zerostatus()
+	filestatus[ginclient.Untracked] += 70
+	// t.Fail vs exiting directly?
+	for idx := 0; idx < 50; idx++ {
+		makeRandFile(fmt.Sprintf("root-%d.git", idx), 5)
+	}
+	for idx := 70; idx < 90; idx++ {
+		makeRandFile(fmt.Sprintf("root-%d.annex", idx), 2000)
+	}
+	run("pwd")
+	assertStatus(".", filestatus)
 	return
+}
+
+func run(command string, args ...string) {
+	cmd := exec.Command(command, args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		println(err.Error())
+	}
+	println(string(out))
 }
