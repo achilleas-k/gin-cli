@@ -1,10 +1,13 @@
 package gincmd
 
 import (
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	ginclient "github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/config"
@@ -42,6 +45,39 @@ func addTestServer() {
 	CheckError(err)
 }
 
+func loginTestuser() {
+	username := "testuser"
+	password := "a test password 42"
+
+	gincl := ginclient.New("test")
+	err := gincl.Login(username, password, "gin-cli")
+	CheckError(err)
+}
+
+func createTestRepository() string {
+	rand.Seed(time.Now().UnixNano())
+	reponame := fmt.Sprintf("gin-test-%04d", rand.Intn(9999))
+
+	gincl := ginclient.New("test")
+	err := gincl.LoadToken()
+	CheckError(err)
+	repopath := fmt.Sprintf("%s/%s", gincl.Username, reponame)
+	fmt.Printf("Creating repository %s\n", repopath)
+	err = gincl.CreateRepo(reponame, "Test repository")
+	CheckError(err)
+	return reponame
+}
+
+func deleteRepository(reponame string) {
+	gincl := ginclient.New("test")
+	err := gincl.LoadToken()
+	CheckError(err)
+	repopath := fmt.Sprintf("%s/%s", gincl.Username, reponame)
+	fmt.Printf("Creating repository %s\n", repopath)
+	err = gincl.DelRepo(repopath)
+	CheckError(err)
+}
+
 // TestMain sets up a temporary git configuration directory to avoid effects
 // from user or local git configurations.
 func TestMain(m *testing.M) {
@@ -51,17 +87,19 @@ func TestMain(m *testing.M) {
 		os.Exit(-1)
 	}
 
+	// set temporary git config file path and disable systemwide
+	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	os.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpconfdir, "gitconfig"))
+
 	// set temporary GIN config directory
 	os.Setenv("GIN_CONFIG_DIR", filepath.Join(tmpconfdir, "gin"))
 
 	// configure test server
 	addTestServer()
 
-	// set temporary git config file path and disable systemwide
-	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
-	os.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpconfdir, "gitconfig"))
+	// login
+	loginTestuser()
 
-	// set git user
 	res := m.Run()
 
 	// Teardown test config
@@ -73,13 +111,16 @@ func TestStuff(t *testing.T) {
 	// rootCmd := SetUpCommands(VersionInfo{})
 	// rootCmd.SetVersionTemplate("{{ .Version }}")
 
-	try := func(err error) {
-		if err != nil {
-			t.Fatalf("Error: %v", err)
-		}
-	}
+	// try := func(err error) {
+	// 	if err != nil {
+	// 		t.Fatalf("Error: %v", err)
+	// 	}
+	// }
 
-	cmd := ServersCmd()
-	try(cmd.Execute())
+	loginTestuser()
+	reponame := createTestRepository()
+	defer deleteRepository(reponame)
+
+	fmt.Printf("Created repository %s", reponame)
 	return
 }
