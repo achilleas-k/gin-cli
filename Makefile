@@ -22,7 +22,7 @@ LDFLAGS = -ldflags="-X main.gincliversion=$(VERNUM) -X main.build=$(BUILDNUM) -X
 
 SOURCES = $(shell find . -type f -iname "*.go") version
 
-.PHONY: gin allplatforms install linux windows macos clean uninstall doc
+.PHONY: gin allplatforms install linux windows macos clean uninstall doc test
 
 gin: $(BUILDLOC)/$(GIN)
 
@@ -59,3 +59,11 @@ $(BUILDLOC)/windows/$(GIN).exe: $(SOURCES)
 
 $(BUILDLOC)/darwin/$(GIN): $(SOURCES)
 	GOOS=darwin GOARCH=amd64 go build -trimpath -o $(BUILDLOC)/darwin/$(GIN) $(LDFLAGS)
+
+test: coverage
+
+coverage: $(SOURCES)
+	go test -race -coverpkg=./... -coverprofile=coverage ./...
+
+coverage.html: coverage
+	go tool cover -html=coverage -o coverage.html
