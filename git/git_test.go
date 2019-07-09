@@ -27,8 +27,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	os.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpconfdir, "gitconfig"))
 
-	// set git user
-	SetGitUser("testuser", "")
 	res := m.Run()
 
 	// Teardown test config
@@ -40,6 +38,8 @@ func TestInit(t *testing.T) {
 	tmpgitdir, _ := ioutil.TempDir("", "git-init-test-")
 	os.Chdir(tmpgitdir)
 
+	// set git user
+	SetGitUser("testuser", "")
 	defer cleanupdir(tmpgitdir)
 
 	err := Init(false)
