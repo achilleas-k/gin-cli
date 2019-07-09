@@ -58,12 +58,16 @@ func createTestRepository() string {
 	rand.Seed(time.Now().UnixNano())
 	reponame := fmt.Sprintf("gin-test-%04d", rand.Intn(9999))
 
-	gincl := ginclient.New("test")
-	err := gincl.LoadToken()
-	CheckError(err)
-	repopath := fmt.Sprintf("%s/%s", gincl.Username, reponame)
-	fmt.Printf("Creating repository %s\n", repopath)
-	err = gincl.CreateRepo(reponame, "Test repository")
+	// gincl := ginclient.New("test")
+	// err := gincl.LoadToken()
+	// CheckError(err)
+	// repopath := fmt.Sprintf("%s/%s", gincl.Username, reponame)
+	// fmt.Printf("Creating repository %s\n", repopath)
+	// err = gincl.CreateRepo(reponame, "Test repository")
+	// CheckError(err)
+	os.Args = []string{"", reponame}
+	cmd := CreateCmd()
+	err := cmd.Execute()
 	CheckError(err)
 	return reponame
 }
@@ -73,7 +77,7 @@ func deleteRepository(reponame string) {
 	err := gincl.LoadToken()
 	CheckError(err)
 	repopath := fmt.Sprintf("%s/%s", gincl.Username, reponame)
-	fmt.Printf("Creating repository %s\n", repopath)
+	fmt.Printf("Cleaning up %s\n", repopath)
 	err = gincl.DelRepo(repopath)
 	CheckError(err)
 }
@@ -82,7 +86,7 @@ func deleteRepository(reponame string) {
 // from user or local git configurations.
 func TestMain(m *testing.M) {
 	// Setup test config
-	tmpconfdir, err := ioutil.TempDir("", "git-test-config-")
+	tmpconfdir, err := ioutil.TempDir("", "gin-test-config-")
 	if err != nil {
 		os.Exit(-1)
 	}
@@ -108,19 +112,23 @@ func TestMain(m *testing.M) {
 }
 
 func TestStuff(t *testing.T) {
-	// rootCmd := SetUpCommands(VersionInfo{})
-	// rootCmd.SetVersionTemplate("{{ .Version }}")
+	// create temporary working directory
+	tmpworkdir, err := ioutil.TempDir("", "gin-test-dir")
+	CheckError(err)
+	defer os.RemoveAll(tmpworkdir)
 
-	// try := func(err error) {
-	// 	if err != nil {
-	// 		t.Fatalf("Error: %v", err)
-	// 	}
-	// }
+	origdir, _ := os.Getwd()
+	defer os.Chdir(origdir)
 
+	os.Chdir(tmpworkdir)
 	loginTestuser()
 	reponame := createTestRepository()
+	dir, _ := os.Getwd()
+	fmt.Printf("I AM IN %s\n", dir)
+	fmt.Printf("Deleting %s\n", reponame)
 	defer deleteRepository(reponame)
 
-	fmt.Printf("Created repository %s", reponame)
+	time.Sleep(30 * time.Second)
+	fmt.Printf("Created repository %s\n", reponame)
 	return
 }
