@@ -13,6 +13,7 @@ import (
 	ginclient "github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/config"
 	"github.com/G-Node/gin-cli/git"
+	"github.com/spf13/cobra"
 )
 
 const testalias = "test"
@@ -181,9 +182,23 @@ func TestStuff(t *testing.T) {
 	for idx := 70; idx < 90; idx++ {
 		makeRandFile(fmt.Sprintf("root-%d.annex", idx), 2000)
 	}
-	run("pwd")
 	assertStatus(".", filestatus)
+
+	// Commit and check status
+	err = runSubcommand(CommitCmd(), "root*")
+	CheckError(err)
+
+	filestatus[ginclient.LocalChanges] += 70
+	filestatus[ginclient.Untracked] -= 70
+	assertStatus(".", filestatus)
+
 	return
+}
+
+func runSubcommand(cmd *cobra.Command, args ...string) error {
+	args = append([]string{cmd.Name()}, args...)
+	os.Args = args
+	return cmd.Execute()
 }
 
 func run(command string, args ...string) {
