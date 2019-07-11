@@ -55,7 +55,7 @@ script:
       if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
           ./tests/start-server;
           while ! curl localhost:3000 -so /dev/null; do sleep 1; done;
-          python3 -m pytest -vx;
+          python3 -m pytest -vk "offline";
       else
           python3 -m pytest -vk "offline";
       fi;
