@@ -50,11 +50,11 @@ install:
 
 script:
   - make testbuild
-  - go test -v ./...
   - if [[ "${TRAVIS_GO_VERSION}" != "tip" ]]; then
       if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
           ./tests/start-server;
           while ! curl localhost:3000 -so /dev/null; do sleep 1; done;
+          go test -v ./...;
           python3 -m pytest -vx;
       else
           python3 -m pytest -vk "offline";
