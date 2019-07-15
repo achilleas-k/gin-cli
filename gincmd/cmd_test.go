@@ -1,12 +1,15 @@
 package gincmd
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -17,6 +20,12 @@ import (
 )
 
 const testalias = "test"
+
+func errcheck(t *testing.T, err error) {
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func zerostatus() map[ginclient.FileStatus]int {
 	return map[ginclient.FileStatus]int{
@@ -32,21 +41,26 @@ func zerostatus() map[ginclient.FileStatus]int {
 
 // makeRandFile creates a random binary file with a given name and size in
 // kilobytes
-func makeRandFile(name string, size uint64) {
+func makeRandFile(name string, size uint64) error {
 	file, err := os.Create(name)
-	CheckError(err)
+	if err != nil {
+		return err
+	}
 	buf := make([]byte, 1024)
 	for count := uint64(0); count < size; count++ {
 		_, err = rand.Read(buf)
-		CheckError(err)
+		if err != nil {
+			return err
+		}
 		file.Write(buf)
 	}
+	return nil
 }
 
-func assertStatus(path string, expected map[ginclient.FileStatus]int) {
+func assertStatus(t *testing.T, path string, expected map[ginclient.FileStatus]int) {
 	gincl := ginclient.New(testalias)
 	filestatus, err := gincl.ListFiles(path)
-	CheckError(err)
+	errcheck(t, err)
 
 	// collect status counts
 	actual := zerostatus()
@@ -56,9 +70,26 @@ func assertStatus(path string, expected map[ginclient.FileStatus]int) {
 
 	for status := range expected {
 		if actual[status] != expected[status] {
-			os.Exit(1) // TODO: Print useful error
+			t.Fatalf("File status assertion failed")
 		}
 	}
+}
+
+func revCount(t *testing.T) uint64 {
+	cmd := git.Command("rev-list", "--count", "master")
+	output, err := cmd.Output()
+	errcheck(t, err)
+
+	output = bytes.TrimSpace(output)
+	count, err := strconv.Atoi(string(output))
+	if err != nil {
+		t.Fatalf("error: failed to parse output of rev count '%s': %v", output, err)
+	}
+
+	if count <= 0 {
+		t.Fatalf("error: rev count returned non-positive number %d", count)
+	}
+	return uint64(count)
 }
 
 func addTestServer() {
@@ -68,64 +99,70 @@ func addTestServer() {
 
 	serverConf := config.ServerCfg{}
 
+	check := func(err error) {
+		if err != nil {
+			log.Fatalf("error while setting up test server configuration: %v", err)
+		}
+	}
+
 	var err error
 	serverConf.Web, err = config.ParseWebString(webstring)
-	CheckError(err)
+	check(err)
 
 	serverConf.Git, err = config.ParseGitString(gitstring)
-	CheckError(err)
+	check(err)
 
 	hostkeystr, _, err := git.GetHostKey(serverConf.Git)
-	CheckError(err)
+	check(err)
 	serverConf.Git.HostKey = hostkeystr
 
 	// Save to config
 	err = config.AddServerConf(testalias, serverConf)
-	CheckError(err)
+	check(err)
 
 	// Recreate known hosts file
 	err = git.WriteKnownHosts()
-	CheckError(err)
+	check(err)
 
 	err = ginclient.SetDefaultServer(testalias)
-	CheckError(err)
+	check(err)
 }
 
-func loginTestuser() {
+func loginTestuser(t *testing.T) {
 	username := "testuser"
 	password := "a test password 42"
 
 	gincl := ginclient.New("test")
 	err := gincl.Login(username, password, "gin-cli")
-	CheckError(err)
+	if err != nil {
+		t.Fatalf("login failed: %v", err)
+	}
 }
 
-func createTestRepository() string {
+func createTestRepository(t *testing.T) string {
 	rand.Seed(time.Now().UnixNano())
 	reponame := fmt.Sprintf("gin-test-%04d", rand.Intn(9999))
 
 	// gincl := ginclient.New("test")
 	// err := gincl.LoadToken()
-	// CheckError(err)
 	// repopath := fmt.Sprintf("%s/%s", gincl.Username, reponame)
 	// fmt.Printf("Creating repository %s\n", repopath)
 	// err = gincl.CreateRepo(reponame, "Test repository")
-	// CheckError(err)
 	os.Args = []string{"", reponame}
 	cmd := CreateCmd()
 	err := cmd.Execute()
-	CheckError(err)
+	errcheck(t, err)
 	return reponame
 }
 
-func deleteRepository(reponame string) {
+func deleteRepository(t *testing.T, reponame string) {
 	gincl := ginclient.New("test")
 	err := gincl.LoadToken()
-	CheckError(err)
+	errcheck(t, err)
 	repopath := fmt.Sprintf("%s/%s", gincl.Username, reponame)
 	fmt.Printf("Cleaning up %s\n", repopath)
 	err = gincl.DelRepo(repopath)
-	CheckError(err)
+	errcheck(t, err)
 }
 
 // TestMain sets up a temporary git configuration directory to avoid effects
@@ -147,9 +184,6 @@ func TestMain(m *testing.M) {
 	// configure test server
 	addTestServer()
 
-	// login
-	loginTestuser()
-
 	res := m.Run()
 
 	// Teardown test config
@@ -160,17 +194,17 @@ func TestMain(m *testing.M) {
 func TestStuff(t *testing.T) {
 	// create temporary working directory
 	tmpworkdir, err := ioutil.TempDir("", "gin-test-dir")
-	CheckError(err)
+	errcheck(t, err)
 	defer os.RemoveAll(tmpworkdir)
 
 	origdir, _ := os.Getwd()
 	defer os.Chdir(origdir)
 
 	os.Chdir(tmpworkdir)
-	loginTestuser()
-	reponame := createTestRepository()
+	loginTestuser(t)
+	reponame := createTestRepository(t)
 	// dir, _ := os.Getwd()
-	defer deleteRepository(reponame)
+	defer deleteRepository(t, reponame)
 
 	// TODO: port test_all_states
 	filestatus := zerostatus()
@@ -182,16 +216,26 @@ func TestStuff(t *testing.T) {
 	for idx := 70; idx < 90; idx++ {
 		makeRandFile(fmt.Sprintf("root-%d.annex", idx), 2000)
 	}
-	assertStatus(".", filestatus)
+	assertStatus(t, ".", filestatus)
 
 	// Commit and check status
 	err = runSubcommand(CommitCmd(), "root*")
-	CheckError(err)
-
+	errcheck(t, err)
 	filestatus[ginclient.LocalChanges] += 70
 	filestatus[ginclient.Untracked] -= 70
-	assertStatus(".", filestatus)
+	assertStatus(t, ".", filestatus)
 
+	// Upload and check status
+	err = runSubcommand(UploadCmd())
+	errcheck(t, err)
+	filestatus[ginclient.Synced] += 70
+	filestatus[ginclient.LocalChanges] -= 70
+	assertStatus(t, ".", filestatus)
+
+	// gin upload command should not have created an extra commit
+	if count := revCount(t); count != 2 {
+		t.Fatalf("error: Expected 2 revisions, got %d", count)
+	}
 	return
 }
 
