@@ -392,35 +392,15 @@ func baseAnnexGet(cmdargs []string, getchan chan<- RepoFileStatus) {
 	var prevByteProgress int
 	var prevT time.Time
 
-	decode := func() (interface{}, error) {
-		var action annexAction
-		var progress annexProgress
-		derr := outdecoder.Decode(&progress)
-		if derr == nil {
-			return progress, nil
-		}
-		if derr == io.EOF {
-			return nil, derr
-		}
-		derr = outdecoder.Decode(&action)
-		if derr == nil {
-			return action, nil
-		}
-		return nil, derr
-	}
+	var action annexAction
+	var progress annexProgress
 
 	for {
-		v, err := decode()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			log.Write("Could not parse 'git annex get' output")
-			log.Write(err.Error())
+		derr := outdecoder.Decode(&progress)
+		if derr == io.EOF {
+			break
 		}
-		switch v.(type) {
-		case annexProgress:
-			progress := v.(annexProgress)
+		if derr == nil {
 			status.FileName = progress.Action.File
 			status.Progress = progress.PercentProgress
 			dbytes := progress.ByteProgress - prevByteProgress
@@ -430,21 +410,30 @@ func baseAnnexGet(cmdargs []string, getchan chan<- RepoFileStatus) {
 			prevByteProgress = progress.ByteProgress
 			prevT = now
 			status.Err = nil
-		case annexAction:
-			getresult := v.(annexAction)
-			status.FileName = getresult.File
-			if getresult.Success {
+			getchan <- status
+			continue
+		}
+		derr = outdecoder.Decode(&action)
+		if derr == io.EOF {
+			break
+		}
+		if derr == nil {
+			status.FileName = action.File
+			if action.Success {
 				status.Progress = progcomplete
 				status.Err = nil
 			} else {
-				errmsg := getresult.Note
+				errmsg := action.Note
 				if strings.Contains(errmsg, "Unable to access") {
 					errmsg = "authorisation failed or remote storage unavailable"
 				}
 				status.Err = fmt.Errorf("failed: %s", errmsg)
 			}
+			getchan <- status
+			continue
 		}
-		getchan <- status
+		log.Write("Could not parse 'git annex get' output")
+		log.Write(derr.Error())
 	}
 
 	if cmd.Wait() != nil {
