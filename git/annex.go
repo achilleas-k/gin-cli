@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -382,40 +383,55 @@ func baseAnnexGet(cmdargs []string, getchan chan<- RepoFileStatus) {
 	}
 
 	var status RepoFileStatus
+
 	status.State = "Downloading"
 
-	var outline []byte
+	outdecoder := json.NewDecoder(cmd.OutReader)
+	outdecoder.DisallowUnknownFields()
 	var rerr error
-	var progress annexProgress
-	var getresult annexAction
 	var prevByteProgress int
 	var prevT time.Time
 
-	for rerr = nil; rerr == nil; outline, rerr = cmd.OutReader.ReadBytes('\n') {
-		if len(outline) == 0 {
-			// skip empty lines
-			continue
+	decode := func() (interface{}, error) {
+		var action annexAction
+		var progress annexProgress
+		derr := outdecoder.Decode(&progress)
+		if derr == nil {
+			return progress, nil
 		}
+		if derr == io.EOF {
+			return nil, derr
+		}
+		derr = outdecoder.Decode(&action)
+		if derr == nil {
+			return action, nil
+		}
+		return nil, derr
+	}
 
-		if RawMode {
-			lineInput := cmd.Args
-			input := strings.Join(lineInput, " ")
-			status.RawInput = input
-			status.RawOutput = string(outline)
-			getchan <- status
-			continue
-		}
-		err := json.Unmarshal(outline, &progress)
-		if err != nil || progress.Action.Command == "" {
-			// File done? Check if succeeded and continue to next line
-			err = json.Unmarshal(outline, &getresult)
-			if err != nil || getresult.Command == "" {
-				// Couldn't parse output
-				log.Write("Could not parse 'git annex get' output")
-				log.Write(string(outline))
-				// TODO: Print error at the end: Command succeeded but there was an error understanding the output
-				continue
+	for {
+		v, err := decode()
+		if err != nil {
+			if err == io.EOF {
+				break
 			}
+			log.Write("Could not parse 'git annex get' output")
+			log.Write(err.Error())
+		}
+		switch v.(type) {
+		case annexProgress:
+			progress := v.(annexProgress)
+			status.FileName = progress.Action.File
+			status.Progress = progress.PercentProgress
+			dbytes := progress.ByteProgress - prevByteProgress
+			now := time.Now()
+			dt := now.Sub(prevT)
+			status.Rate = calcRate(dbytes, dt)
+			prevByteProgress = progress.ByteProgress
+			prevT = now
+			status.Err = nil
+		case annexAction:
+			getresult := v.(annexAction)
 			status.FileName = getresult.File
 			if getresult.Success {
 				status.Progress = progcomplete
@@ -427,20 +443,10 @@ func baseAnnexGet(cmdargs []string, getchan chan<- RepoFileStatus) {
 				}
 				status.Err = fmt.Errorf("failed: %s", errmsg)
 			}
-		} else {
-			status.FileName = progress.Action.File
-			status.Progress = progress.PercentProgress
-			dbytes := progress.ByteProgress - prevByteProgress
-			now := time.Now()
-			dt := now.Sub(prevT)
-			status.Rate = calcRate(dbytes, dt)
-			prevByteProgress = progress.ByteProgress
-			prevT = now
-			status.Err = nil
 		}
-
 		getchan <- status
 	}
+
 	if cmd.Wait() != nil {
 		var stderr, errline []byte
 		for rerr = nil; rerr == nil; errline, rerr = cmd.OutReader.ReadBytes('\000') {
