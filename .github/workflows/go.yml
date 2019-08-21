@@ -23,7 +23,10 @@ jobs:
         go get -v -t -d ./...
 
     - name: Build
-      run: make
+      run: |
+        make
+        ./build/gin --version
+
 
     - name: Test
       run: go test -v ./...
