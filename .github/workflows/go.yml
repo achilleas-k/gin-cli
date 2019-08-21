@@ -18,6 +18,8 @@ jobs:
 
     - name: Get dependencies
       run: |
+        sudo apt-get update
+        sudo apt-get install -y git git-annex
         go get -v -t -d ./...
 
     - name: Build
