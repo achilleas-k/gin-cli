@@ -953,6 +953,14 @@ func AnnexAdd(filepaths []string, addchan chan<- RepoFileStatus) {
 	// NOTE Can differentiate "git" and "annex" files from note in JSON struct
 	var filenames []string
 	for rerr = nil; rerr == nil; outline, rerr = cmd.OutReader.ReadBytes('\n') {
+		fmt.Println("Read line")
+		var rerrstr string
+		if rerr == nil {
+			rerrstr = "nil"
+		} else {
+			rerrstr = rerr.Error()
+		}
+		fmt.Printf("OL: %s (rerr: %s)\n", outline, rerrstr)
 		if len(outline) == 0 {
 			// Empty line output. Ignore
 			continue
@@ -994,9 +1002,13 @@ func AnnexAdd(filepaths []string, addchan chan<- RepoFileStatus) {
 			status.Err = fmt.Errorf("failed")
 		}
 		status.Progress = progcomplete
+		fmt.Printf("Sending line for %s\n", status.FileName)
 		addchan <- status
+		fmt.Println("Good!")
 	}
+	fmt.Println("We're out")
 	var stderr, errline []byte
+	fmt.Println("Waiting for command to finish")
 	if cmd.Wait() != nil {
 		for rerr = nil; rerr == nil; errline, rerr = cmd.OutReader.ReadBytes('\000') {
 			stderr = append(stderr, errline...)
@@ -1004,15 +1016,16 @@ func AnnexAdd(filepaths []string, addchan chan<- RepoFileStatus) {
 		log.Write("Error during AnnexAdd")
 		logstd(nil, stderr)
 	}
-	// Add metadata
-	status.State = "Writing filename metadata"
-	for _, fname := range filenames {
-		setAnnexMetadataName(fname)
-		status.FileName = fname
-		status.Progress = progcomplete
-		addchan <- status
-	}
 	return
+	// Add metadata
+	// status.State = "Writing filename metadata (but not really)"
+	// for _, fname := range filenames {
+	// 	setAnnexMetadataName(fname)
+	// 	status.FileName = fname
+	// 	status.Progress = progcomplete
+	// 	addchan <- status
+	// }
+	// return
 }
 
 // setAnnexMetadataName starts a routine and waits for input on the provided channel.

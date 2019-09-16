@@ -259,6 +259,7 @@ func printProgressOutput(statuschan <-chan git.RepoFileStatus) (filesuccess map[
 
 	printed := false
 	for stat := range statuschan {
+		fmt.Println("\n:: Statuschan read loop: BEGIN")
 		outline.Reset()
 		outline.WriteString(" ")
 		if stat.FileName != fname || stat.State != state {
@@ -295,7 +296,9 @@ func printProgressOutput(statuschan <-chan git.RepoFileStatus) (filesuccess map[
 			lastprint = newprint
 			printed = true
 		}
+		fmt.Println("\n:: Statuschan read loop: END")
 	}
+	fmt.Println("OUT!!")
 	if !printed {
 		fmt.Println("   Nothing to do")
 	}
