@@ -1,6 +1,7 @@
 package ginclient
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -1113,4 +1114,48 @@ func Checkwd() error {
 	}
 
 	return nil
+}
+
+func GitCommand(args ...string) (*bufio.Reader, *bufio.Reader, chan error) {
+	gr := git.New(".")
+	gr.SSHCmd = SSHOpts()
+	annexcmd := gr.Command(args...)
+
+	errc := make(chan error)
+	go func() {
+		defer func() {
+			close(errc)
+		}()
+		err := annexcmd.Start()
+		if err != nil {
+			errc <- err
+			return
+		}
+		errc <- annexcmd.Wait()
+		return
+	}()
+
+	return annexcmd.OutReader, annexcmd.ErrReader, errc
+}
+
+func AnnexCommand(args ...string) (*bufio.Reader, *bufio.Reader, chan error) {
+	gr := git.New(".")
+	gr.SSHCmd = SSHOpts()
+	annexcmd := gr.AnnexCommand(args...)
+
+	errc := make(chan error)
+	go func() {
+		defer func() {
+			close(errc)
+		}()
+		err := annexcmd.Start()
+		if err != nil {
+			errc <- err
+			return
+		}
+		errc <- annexcmd.Wait()
+		return
+	}()
+
+	return annexcmd.OutReader, annexcmd.ErrReader, errc
 }

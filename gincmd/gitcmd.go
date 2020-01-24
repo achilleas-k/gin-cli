@@ -5,29 +5,23 @@ import (
 	"os"
 
 	"github.com/G-Node/gin-cli/ginclient"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/spf13/cobra"
 )
 
 func gitrun(cmd *cobra.Command, args []string) {
 	// TODO: Use all available keys?
-	gincl := ginclient.New("")
-	_ = gincl.LoadToken() // OK to run without token
-	gr := git.New(".")
-	gitcmd := gr.Command(args...)
-	err := gitcmd.Start()
-	CheckError(err)
-	var line string
-	var rerr error
-	for rerr = nil; rerr == nil; line, rerr = gitcmd.OutReader.ReadString('\n') {
+	stdout, stderr, errc := ginclient.GitCommand(args...)
+
+	for line, rerr := stdout.ReadString('\n'); rerr == nil; line, rerr = stdout.ReadString('\n') {
 		fmt.Print(line)
 	}
-	for rerr = nil; rerr == nil; line, rerr = gitcmd.ErrReader.ReadString('\n') {
+	for line, rerr := stderr.ReadString('\n'); rerr == nil; line, rerr = stderr.ReadString('\n') {
 		fmt.Fprint(os.Stderr, line)
 	}
-	if gitcmd.Wait() != nil {
+	if <-errc != nil {
 		os.Exit(1)
 	}
+
 }
 
 // GitCmd sets up the 'git' passthrough subcommand

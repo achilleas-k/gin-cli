@@ -5,25 +5,19 @@ import (
 	"os"
 
 	"github.com/G-Node/gin-cli/ginclient"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/spf13/cobra"
 )
 
 func annexrun(cmd *cobra.Command, args []string) {
-	gr := git.New(".")
-	gr.SSHCmd = ginclient.SSHOpts()
-	annexcmd := gr.AnnexCommand(args...)
-	err := annexcmd.Start()
-	CheckError(err)
-	var line string
-	var rerr error
-	for rerr = nil; rerr == nil; line, rerr = annexcmd.OutReader.ReadString('\n') {
+	stdout, stderr, errc := ginclient.AnnexCommand(args...)
+
+	for line, rerr := stdout.ReadString('\n'); rerr == nil; line, rerr = stdout.ReadString('\n') {
 		fmt.Print(line)
 	}
-	for rerr = nil; rerr == nil; line, rerr = annexcmd.ErrReader.ReadString('\n') {
+	for line, rerr := stderr.ReadString('\n'); rerr == nil; line, rerr = stderr.ReadString('\n') {
 		fmt.Fprint(os.Stderr, line)
 	}
-	if annexcmd.Wait() != nil {
+	if <-errc != nil {
 		os.Exit(1)
 	}
 }
