@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/G-Node/gin-cli/ginclient/config"
@@ -22,7 +23,19 @@ import (
 // High level functions for managing repositories.
 // These functions either end up performing web calls (using the web package) or git shell commands (using the git package).
 
-const unknownhostname = "(unknownhost)"
+type Error string
+
+func (e Error) Error() string {
+	return string(e)
+}
+
+const (
+	unknownhostname = "(unknownhost)"
+	// Constant errors
+	NotRepository   = Error("Not a repository")
+	NotAnnex        = Error("No annex found")
+	UpgradeRequired = Error("Repository upgrade needed")
+)
 
 // Types
 
@@ -482,7 +495,7 @@ func (gincl *Client) CloneRepo(repopath string) chan git.RepoFileStatus {
 // If a new commit is created and a default remote exists, the new commit is pushed to initialise the remote as well.
 // Returns 'true' if (and only if) a commit was created.
 func CommitIfNew() (bool, error) {
-	if git.Checkwd() == git.NotRepository {
+	if Checkwd() == NotRepository {
 		// Other errors allowed
 		return false, fmt.Errorf("not a repository")
 	}
@@ -677,7 +690,7 @@ func (gincl *Client) CheckoutFileCopies(commithash string, paths []string, outpa
 func (gincl *Client) InitDir(bare bool) error {
 	initerr := ginerror{Origin: "InitDir", Description: "Error initialising local directory"}
 	gr := git.New(".")
-	if git.Checkwd() == git.NotRepository {
+	if Checkwd() == NotRepository {
 		err := gr.Init(".", bare)
 		if err != nil {
 			initerr.UError = err.Error()
@@ -1051,4 +1064,37 @@ func expandglobs(paths []string, strictmatch bool) (globexppaths []string, err e
 		globexppaths = append(globexppaths, exp...)
 	}
 	return
+}
+
+// Checkwd checks whether the current working directory is in a git repository.
+// Returns NotRepository if the working directory is not inside a repository.
+// Returns NotAnnex if the working directory is inside a repository but there is no annex.
+// Returns UpgradeRequired if the annex is an old version (< v7).
+// Otherwise returns 'nil'.
+func Checkwd() error {
+	gr := git.New(".")
+	path, _ := filepath.Abs(".")
+	_, err := gr.FindRepoRoot(path)
+	if err != nil {
+		return NotRepository
+	}
+
+	annexver, err := gr.ConfigGet("annex.version")
+	if err != nil {
+		// Annex version config key missing: Annex not initialised
+		return NotAnnex
+	}
+
+	ver, err := strconv.Atoi(annexver)
+	if err != nil {
+		// Annex version string should be number.  Something went wrong.
+		// Return UpgradeRequired to upgrade and fix the repository info.
+		return UpgradeRequired
+	}
+
+	if ver < 7 {
+		return UpgradeRequired
+	}
+
+	return nil
 }

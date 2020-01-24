@@ -6,7 +6,6 @@ import (
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/config"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/spf13/cobra"
 )
 
@@ -16,12 +15,12 @@ func getContent(cmd *cobra.Command, args []string) {
 	// TODO: no need for client; use remotes (and all keys?)
 	gincl := ginclient.New(conf.DefaultServer)
 	requirelogin(cmd, gincl, prStyle != psJSON)
-	switch git.Checkwd() {
-	case git.NotRepository:
+	switch ginclient.Checkwd() {
+	case ginclient.NotRepository:
 		Die(ginerrors.NotInRepo)
-	case git.NotAnnex:
+	case ginclient.NotAnnex:
 		Warn(ginerrors.MissingAnnex)
-	case git.UpgradeRequired:
+	case ginclient.UpgradeRequired:
 		annexVersionNotice()
 	}
 

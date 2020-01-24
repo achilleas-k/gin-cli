@@ -12,12 +12,12 @@ import (
 func upload(cmd *cobra.Command, args []string) {
 	prStyle := determinePrintStyle(cmd)
 	remotes, _ := cmd.Flags().GetStringSlice("to")
-	switch git.Checkwd() {
-	case git.NotRepository:
+	switch ginclient.Checkwd() {
+	case ginclient.NotRepository:
 		Die(ginerrors.NotInRepo)
-	case git.NotAnnex:
+	case ginclient.NotAnnex:
 		Warn(ginerrors.MissingAnnex)
-	case git.UpgradeRequired:
+	case ginclient.UpgradeRequired:
 		annexVersionNotice()
 	}
 

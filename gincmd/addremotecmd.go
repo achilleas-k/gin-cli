@@ -156,7 +156,7 @@ func defaultRemoteIfUnset(name string) {
 }
 
 func addRemote(cmd *cobra.Command, args []string) {
-	if git.Checkwd() == git.NotRepository {
+	if ginclient.Checkwd() == ginclient.NotRepository {
 		Die(ginerrors.NotInRepo)
 	}
 	flags := cmd.Flags()

@@ -9,16 +9,15 @@ import (
 
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
 func lsRepo(cmd *cobra.Command, args []string) {
-	switch git.Checkwd() {
-	case git.NotRepository:
+	switch ginclient.Checkwd() {
+	case ginclient.NotRepository:
 		Die(ginerrors.NotInRepo)
-	case git.NotAnnex:
+	case ginclient.NotAnnex:
 		Warn(ginerrors.MissingAnnex)
 	}
 

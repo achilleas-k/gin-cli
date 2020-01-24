@@ -17,12 +17,12 @@ func download(cmd *cobra.Command, args []string) {
 	// TODO: no client necessary? Just use remotes
 	conf := config.Read()
 	gincl := ginclient.New(conf.DefaultServer)
-	switch git.Checkwd() {
-	case git.NotRepository:
+	switch ginclient.Checkwd() {
+	case ginclient.NotRepository:
 		Die(ginerrors.NotInRepo)
-	case git.NotAnnex:
+	case ginclient.NotAnnex:
 		Warn(ginerrors.MissingAnnex)
-	case git.UpgradeRequired:
+	case ginclient.UpgradeRequired:
 		annexVersionNotice()
 	}
 	remote, err := ginclient.DefaultRemote()

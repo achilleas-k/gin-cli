@@ -15,20 +15,9 @@ import (
 	"github.com/G-Node/gin-cli/git/shell"
 )
 
-type Error string
-
-func (e Error) Error() string {
-	return string(e)
-}
-
 const (
 	progcomplete    = "100%"
 	unknownhostname = "(unknown)"
-
-	// Constant errors
-	NotRepository   = Error("Not a repository")
-	NotAnnex        = Error("No annex found")
-	UpgradeRequired = Error("Repository upgrade needed")
 )
 
 // giterror convenience alias to util.Error
@@ -398,10 +387,6 @@ func (gr *Runner) Add(filepaths []string) chan RepoFileStatus {
 // SetGitUser sets the user.name and user.email configuration values for the
 // local git repository.
 func (gr *Runner) SetGitUser(name, email string) error {
-	if Checkwd() == NotRepository {
-		// Other errors allowed
-		return fmt.Errorf("not a repository")
-	}
 	err := gr.ConfigSet("user.name", name)
 	if err != nil {
 		return err
@@ -568,38 +553,6 @@ func (gr *Runner) RevParse(rev string) (string, error) {
 		return "", gerr
 	}
 	return string(stdout), nil
-}
-
-// Checkwd checks whether the current working directory is in a git repository.
-// Returns NotRepository if the working directory is not inside a repository.
-// Returns NotAnnex if the working directory is inside a repository but there is no annex.
-// Returns UpgradeRequired if the annex is an old version (< v7).
-func Checkwd() error {
-	gr := New(".")
-	path, _ := filepath.Abs(".")
-	_, err := gr.FindRepoRoot(path)
-	if err != nil {
-		return NotRepository
-	}
-
-	annexver, err := gr.ConfigGet("annex.version")
-	if err != nil {
-		// Annex version config key missing: Annex not initialised
-		return NotAnnex
-	}
-
-	ver, err := strconv.Atoi(annexver)
-	if err != nil {
-		// Annex version string should be number.  Something went wrong.
-		// Return UpgradeRequired to upgrade and fix the repository info.
-		return UpgradeRequired
-	}
-
-	if ver < 7 {
-		return UpgradeRequired
-	}
-
-	return nil
 }
 
 // FindRepoRoot returns the absolute path to the root of the repository.

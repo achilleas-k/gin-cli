@@ -5,12 +5,11 @@ import (
 
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/spf13/cobra"
 )
 
 func useRemote(cmd *cobra.Command, args []string) {
-	if git.Checkwd() == git.NotRepository {
+	if ginclient.Checkwd() == ginclient.NotRepository {
 		Die(ginerrors.NotInRepo)
 	}
 	if len(args) > 0 {
