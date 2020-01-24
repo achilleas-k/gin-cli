@@ -5,7 +5,6 @@ import (
 
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/config"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -50,9 +49,7 @@ func createRepo(cmd *cobra.Command, args []string) {
 		err = gincl.InitDir(false)
 		CheckError(err)
 		url := fmt.Sprintf("%s/%s", gincl.GitAddress(), repopath)
-		gr := git.New(".")
-		gr.SSHCmd = ginclient.SSHOpts()
-		err = gr.RemoteAdd("origin", url)
+		err = ginclient.AddRemote("origin", url)
 		CheckError(err)
 		defaultRemoteIfUnset("origin")
 		newcommit, err := ginclient.CommitIfNew()

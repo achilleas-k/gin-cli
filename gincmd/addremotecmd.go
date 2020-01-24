@@ -178,9 +178,7 @@ func addRemote(cmd *cobra.Command, args []string) {
 			promptCreate(cmd, rmt)
 		}
 	}
-	gr := git.New(".")
-	gr.SSHCmd = ginclient.SSHOpts()
-	err = gr.RemoteAdd(name, rmt.url)
+	err = ginclient.AddRemote(name, rmt.url)
 	CheckError(err)
 	fmt.Printf(":: Added new remote: %s [%s]\n", name, rmt.url)
 	if setdefault {

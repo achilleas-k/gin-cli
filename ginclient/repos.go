@@ -566,6 +566,22 @@ func UnsetDefaultRemote() error {
 	return nil
 }
 
+// AddRemote adds a remote to a repository's configuration and also optionally
+// creates it on the server if it does not yet exist.
+// Performs a 'fetch' after success to retrieve all remote references.
+func AddRemote(name string, url string) error {
+	gr := git.New(".")
+	gr.SSHCmd = SSHOpts()
+	if err := gr.RemoteAdd(name, url); err != nil {
+		return err
+	}
+
+	// Performing fetch after adding remote to retrieve references
+	// Errors are ignored
+	gr.Command("fetch", name).Run()
+	return nil
+}
+
 // RemoveRemote removes a remote from the repository configuration.
 func RemoveRemote(remote string) error {
 	gr := git.New(".")

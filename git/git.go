@@ -482,10 +482,6 @@ func (gr *Runner) RemoteAdd(name, url string) error {
 		}
 		return gerr
 	}
-	// Performing fetch after adding remote to retrieve references
-	// Errors are ignored
-	cmd = gr.Command("fetch", name)
-	cmd.OutputError()
 	return nil
 }
 
