@@ -31,8 +31,8 @@ func getRepo(cmd *cobra.Command, args []string) {
 	clonechan := gincl.CloneRepo(repostr)
 	formatOutput(clonechan, prStyle, 0)
 	defaultRemoteIfUnset("origin")
-	new, err := ginclient.CommitIfNew()
-	if new {
+	newcommit, err := ginclient.CommitIfNew()
+	if newcommit {
 		// Push the new commit to initialise origin
 		uploadchan := gincl.Upload(nil, []string{"origin"})
 		for range uploadchan {

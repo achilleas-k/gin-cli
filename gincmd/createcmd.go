@@ -55,9 +55,9 @@ func createRepo(cmd *cobra.Command, args []string) {
 		err = gr.RemoteAdd("origin", url)
 		CheckError(err)
 		defaultRemoteIfUnset("origin")
-		new, err := ginclient.CommitIfNew()
+		newcommit, err := ginclient.CommitIfNew()
 		CheckError(err)
-		if new {
+		if newcommit {
 			// Push the new commit to initialise origin
 			uploadchan := gincl.Upload(nil, []string{"origin"})
 			for range uploadchan {
