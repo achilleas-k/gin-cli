@@ -293,6 +293,11 @@ func Add(paths []string) chan git.RepoFileStatus {
 	return addchan
 }
 
+func (gincl *Client) Commit(msg string) error {
+	gr := git.New(".")
+	return gr.Commit(msg)
+}
+
 // Upload transfers locally recorded changes to a remote.
 // The status channel 'uploadchan' is closed when this function returns.
 func (gincl *Client) Upload(paths []string, remotes []string) chan git.RepoFileStatus {

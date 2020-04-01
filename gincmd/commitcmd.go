@@ -7,7 +7,6 @@ import (
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/log"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -41,8 +40,8 @@ func commit(cmd *cobra.Command, args []string) {
 	if commitmsg == "" {
 		commitmsg = makeCommitMessage("commit", paths)
 	}
-	gr := git.New(".")
-	err := gr.Commit(commitmsg)
+	gincl := ginclient.New("")
+	err := gincl.Commit(commitmsg)
 	var stat string
 	if err != nil {
 		if err.Error() == "Nothing to commit" {
