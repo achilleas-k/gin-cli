@@ -1,6 +1,7 @@
 package gincmd
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/log"
@@ -397,6 +399,28 @@ func formatOutput(statuschan <-chan git.RepoFileStatus, pstyle printstyle, nitem
 		}
 		Die(fmt.Sprintf("%d operation%s failed", nerrors, plural))
 	}
+}
+
+func printPasstrough(stdout *bufio.Reader, stderr *bufio.Reader, errc chan error) {
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for line, rerr := stdout.ReadString('\n'); rerr == nil; line, rerr = stdout.ReadString('\n') {
+			fmt.Print(line)
+		}
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for line, rerr := stderr.ReadString('\n'); rerr == nil; line, rerr = stderr.ReadString('\n') {
+			fmt.Fprint(os.Stderr, line)
+		}
+	}()
+	if <-errc != nil {
+		Exit("")
+	}
+	wg.Wait()
 }
 
 var wouter = wrap.NewWrapper()

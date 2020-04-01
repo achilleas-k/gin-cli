@@ -1,25 +1,12 @@
 package gincmd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/spf13/cobra"
 )
 
 func annexrun(cmd *cobra.Command, args []string) {
-	stdout, stderr, errc := ginclient.AnnexCommand(args...)
-
-	for line, rerr := stdout.ReadString('\n'); rerr == nil; line, rerr = stdout.ReadString('\n') {
-		fmt.Print(line)
-	}
-	for line, rerr := stderr.ReadString('\n'); rerr == nil; line, rerr = stderr.ReadString('\n') {
-		fmt.Fprint(os.Stderr, line)
-	}
-	if <-errc != nil {
-		os.Exit(1)
-	}
+	printPasstrough(ginclient.AnnexCommand(args...))
 }
 
 // AnnexCmd sets up the 'annex' passthrough subcommand

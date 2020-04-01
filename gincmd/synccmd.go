@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func sync(cmd *cobra.Command, args []string) {
+func annexsync(cmd *cobra.Command, args []string) {
 	prStyle := determinePrintStyle(cmd)
 	// TODO: no client necessary? Just use remotes
 	conf := config.Read()
@@ -43,7 +43,7 @@ func SyncCmd() *cobra.Command {
 		Short:                 "Sync all new information bidirectionally between local and remote repositories",
 		Long:                  formatdesc(description, nil),
 		Args:                  cobra.NoArgs,
-		Run:                   sync,
+		Run:                   annexsync,
 		DisableFlagsInUseLine: true,
 	}
 	cmd.Flags().Bool("json", false, jsonHelpMsg)
