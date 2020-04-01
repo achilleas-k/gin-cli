@@ -1053,6 +1053,18 @@ func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
 	return lfIndirect(paths...)
 }
 
+// FindRepoRoot returns the absolute path to the root of the repository.
+// For bare repositories, it returns an empty string, but no error.
+// (git rev-parse --show-toplevel)
+func (gincl *Client) FindRepoRoot(path string) (string, error) {
+	if Checkwd() == NotRepository {
+		return "", fmt.Errorf("not a git repository")
+	}
+	gr := git.New(".")
+	gr.SSHCmd = SSHOpts()
+	return gr.FindRepoRoot(path)
+}
+
 // expandglobs expands a list of globs into paths (files and directories).
 // If strictmatch is true, an error is returned if at least one element of the input slice does not match a real path,
 // otherwise the pattern itself is returned when it matches no existing path.

@@ -7,7 +7,6 @@ import (
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/config"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -40,8 +39,7 @@ func download(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(color.Output, green("OK"))
 	}
 	if content {
-		gr := git.New(".")
-		reporoot, _ := gr.FindRepoRoot(".")
+		reporoot, _ := gincl.FindRepoRoot(".")
 		os.Chdir(reporoot)
 		getContent(cmd, nil)
 	}
