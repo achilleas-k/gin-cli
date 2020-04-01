@@ -685,58 +685,6 @@ func (gr *Runner) LsFiles(args []string) chan string {
 	return lschan
 }
 
-// DescribeIndexShort returns a string which represents a condensed form of the git (annex) index.
-// It is constructed using the result of 'git annex status'.
-// The description is composed of the file count for each status: added, modified, deleted
-// If 'paths' are specified, the status output is limited to files and directories matching those paths.
-func (gr *Runner) DescribeIndexShort(paths []string) (string, error) {
-	// TODO: 'git annex status' doesn't list added (A) files when in direct mode.
-	statuschan := gr.AnnexStatus(paths)
-	statusmap := make(map[string]int)
-	for item := range statuschan {
-		if item.Err != nil {
-			return "", item.Err
-		}
-		statusmap[item.Status]++
-	}
-
-	var changesBuffer bytes.Buffer
-	if statusmap["A"] > 0 {
-		_, _ = changesBuffer.WriteString(fmt.Sprintf("New files: %d\n", statusmap["A"]))
-	}
-	if statusmap["M"] > 0 {
-		_, _ = changesBuffer.WriteString(fmt.Sprintf("Modified files: %d\n", statusmap["M"]))
-	}
-	if statusmap["D"] > 0 {
-		_, _ = changesBuffer.WriteString(fmt.Sprintf("Deleted files: %d\n", statusmap["D"]))
-	}
-	return changesBuffer.String(), nil
-}
-
-// DescribeIndex returns a string which describes the git (annex) index.
-// It is constructed using the result of 'git annex status'.
-// The resulting message can be used to inform the user of changes
-// that are about to be uploaded and as a long commit message.
-func (gr *Runner) DescribeIndex() (string, error) {
-	statuschan := gr.AnnexStatus([]string{})
-	statusmap := make(map[string][]string)
-	for item := range statuschan {
-		if item.Err != nil {
-			return "", item.Err
-		}
-		statusmap[item.Status] = append(statusmap[item.Status], item.File)
-	}
-
-	var changesBuffer bytes.Buffer
-	_, _ = changesBuffer.WriteString(makeFileList("New files", statusmap["A"]))
-	_, _ = changesBuffer.WriteString(makeFileList("Modified files", statusmap["M"]))
-	_, _ = changesBuffer.WriteString(makeFileList("Deleted files", statusmap["D"]))
-	_, _ = changesBuffer.WriteString(makeFileList("Type modified files", statusmap["T"]))
-	_, _ = changesBuffer.WriteString(makeFileList("Untracked files ", statusmap["?"]))
-
-	return changesBuffer.String(), nil
-}
-
 // Log returns the commit logs for the repository.
 // The number of commits can be limited by the count argument.
 // If count <= 0, the entire commit history is returned.

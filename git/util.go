@@ -16,19 +16,6 @@ import (
 
 var annexmodecache = make(map[string]bool)
 
-func makeFileList(header string, fnames []string) string {
-	if len(fnames) == 0 {
-		return ""
-	}
-	var filelist bytes.Buffer
-	_, _ = filelist.WriteString(fmt.Sprintf("%s (%d)\n", header, len(fnames)))
-	for idx, name := range fnames {
-		_, _ = filelist.WriteString(fmt.Sprintf("  %d: %s\n", idx+1, name))
-	}
-	_, _ = filelist.WriteString("\n")
-	return filelist.String()
-}
-
 func calcRate(dbytes int, dt time.Duration) string {
 	dtns := dt.Nanoseconds()
 	if dtns <= 0 || dbytes <= 0 {

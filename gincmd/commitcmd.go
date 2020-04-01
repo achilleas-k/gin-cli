@@ -65,8 +65,8 @@ func makeCommitMessage(action string, paths []string) (commitmsg string) {
 		log.Write("Could not retrieve hostname")
 		hostname = unknownhostname
 	}
-	gr := git.New(".")
-	changes, err := gr.DescribeIndexShort(paths)
+	gincl := ginclient.New("")
+	changes, err := gincl.DescribeIndexShort(paths)
 	if err != nil {
 		log.Write("Failed to determine changes for commit message")
 		changes = ""
