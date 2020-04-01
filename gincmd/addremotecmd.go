@@ -9,7 +9,6 @@ import (
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/config"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -76,19 +75,6 @@ func parseRemote(remotestr string) remote {
 	return rmt
 }
 
-func checkRemote(cmd *cobra.Command, url string) (err error) {
-	// Check if the remote is accessible
-	fmt.Print(":: Checking remote: ")
-	gr := git.New(".")
-	gr.SSHCmd = ginclient.SSHOpts()
-	if _, err = gr.LsRemote(url); err == nil {
-		fmt.Fprintln(color.Output, green("OK"))
-		return nil
-	}
-	fmt.Println("not found")
-	return err
-}
-
 func createGinRemote(cmd *cobra.Command, rmt remote) {
 	gincl := ginclient.New(rmt.server)
 	requirelogin(cmd, gincl, true)
@@ -112,9 +98,7 @@ func createDirRemote(rmt remote) {
 	gincl := ginclient.New("")
 	err = gincl.InitDir(true)
 	CheckError(err)
-	gr := git.New(".")
-	gr.SSHCmd = ginclient.SSHOpts()
-	gr.AnnexDescribe("here", "GIN Storage")
+	ginclient.DescribeRemote("here", "GIN Storage")
 }
 
 func createRemote(cmd *cobra.Command, rmt remote) {
@@ -169,16 +153,20 @@ func addRemote(cmd *cobra.Command, args []string) {
 
 	// TODO: Check if remote with same name already exists; fail early
 	rmt := parseRemote(remotestr)
-	err := checkRemote(cmd, rmt.url)
-	// TODO: Check if it's a gin URL before offering to create
-	if err != nil {
+	fmt.Print(":: Checking remote: ")
+	if ginclient.IsRemoteReachable(rmt.url) {
+		fmt.Fprintln(color.Output, green("OK"))
+	} else {
+		fmt.Println("not found")
 		if nocreateprompt {
 			createRemote(cmd, rmt)
 		} else {
 			promptCreate(cmd, rmt)
 		}
+
 	}
-	err = ginclient.AddRemote(name, rmt.url)
+	// TODO: Check if it's a gin URL before offering to create
+	err := ginclient.AddRemote(name, rmt.url)
 	CheckError(err)
 	fmt.Printf(":: Added new remote: %s [%s]\n", name, rmt.url)
 	if setdefault {

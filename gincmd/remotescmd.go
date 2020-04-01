@@ -6,7 +6,6 @@ import (
 
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -22,8 +21,7 @@ func printremotes(cmd *cobra.Command, args []string) {
 		Warn(ginerrors.MissingAnnex)
 	}
 
-	gr := git.New(".")
-	remotes, err := gr.RemoteShow()
+	remotes, err := ginclient.GetRemotes()
 	CheckError(err)
 	defremote, err := ginclient.DefaultRemote()
 	CheckError(err)

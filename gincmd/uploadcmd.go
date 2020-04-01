@@ -5,7 +5,6 @@ import (
 
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/spf13/cobra"
 )
 
@@ -29,8 +28,7 @@ func upload(cmd *cobra.Command, args []string) {
 	// If any of the specified remotes is the special name 'all', upload to all configured remotes
 	for _, remote := range remotes {
 		if remote == allremotes {
-			gr := git.New(".")
-			confremotes, err := gr.RemoteShow()
+			confremotes, err := ginclient.GetRemotes()
 			CheckErrorMsg(err, fmt.Sprintf("'all' remotes specified, but could not determine configured remotes: %s", err))
 			remotes = make([]string, 0, len(confremotes))
 			for r := range confremotes {

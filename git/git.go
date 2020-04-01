@@ -443,30 +443,16 @@ func (gr *Runner) ConfigUnset(key string) error {
 
 // RemoteShow returns the configured remotes and their URL.
 // (git remote -v show -n)
-func (gr *Runner) RemoteShow() (map[string]string, error) {
+func (gr *Runner) RemoteShow() (string, error) {
 	fn := "RemoteShow()"
 	cmd := gr.Command("remote", "-v", "show", "-n")
 	stdout, stderr, err := cmd.OutputError()
 	if err != nil {
 		sstderr := string(stderr)
 		gerr := giterror{UError: sstderr, Origin: fn}
-		return nil, gerr
+		return "", gerr
 	}
-	remotes := make(map[string]string)
-	sstdout := string(stdout)
-	for _, line := range strings.Split(sstdout, "\n") {
-		line = strings.TrimSuffix(line, "\n")
-		if len(strings.TrimSpace(line)) == 0 {
-			continue
-		}
-		parts := strings.Fields(line)
-		if len(parts) != 3 {
-			continue
-		}
-		remotes[parts[0]] = parts[1]
-	}
-
-	return remotes, nil
+	return string(stdout), nil
 }
 
 // RemoteAdd adds a remote named name for the repository at URL.

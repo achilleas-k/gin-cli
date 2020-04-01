@@ -325,7 +325,7 @@ func (gincl *Client) Upload(paths []string, remotes []string) chan git.RepoFileS
 			remotes = []string{remote}
 		}
 
-		confremotes, err := gr.RemoteShow()
+		confremotes, err := GetRemotes()
 		if err != nil || len(confremotes) == 0 {
 			uploadchan <- git.RepoFileStatus{Err: fmt.Errorf("failed to validate remote configuration (no configured remotes?)")}
 		}
@@ -546,10 +546,39 @@ func DefaultRemote() (string, error) {
 	return defremote, err
 }
 
+// ListRemotes returns a name->URL map of the configured remotes.
+func GetRemotes() (map[string]string, error) {
+	gr := git.New(".")
+	remotesStr, err := gr.RemoteShow()
+	if err != nil {
+		return nil, err
+	}
+	remotes := make(map[string]string)
+	for _, line := range strings.Split(remotesStr, "\n") {
+		line = strings.TrimSuffix(line, "\n")
+		if len(strings.TrimSpace(line)) == 0 {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) != 3 {
+			continue
+		}
+		remotes[parts[0]] = parts[1]
+	}
+	return remotes, nil
+}
+
+// DescribeRemote sets the provided description to the named git-annex remote.
+func DescribeRemote(remote string, description string) error {
+	gr := git.New(".")
+	gr.SSHCmd = SSHOpts()
+	return gr.AnnexDescribe(remote, description)
+}
+
 // SetDefaultRemote sets the name of the default gin remote.
 func SetDefaultRemote(remote string) error {
 	gr := git.New(".")
-	remotes, err := gr.RemoteShow()
+	remotes, err := GetRemotes()
 	if err != nil {
 		return fmt.Errorf("failed to determine configured remotes")
 	}
@@ -561,6 +590,14 @@ func SetDefaultRemote(remote string) error {
 		return fmt.Errorf("failed to set default remote: %s", err)
 	}
 	return nil
+}
+
+// IsRemoteReachable checks if a remote URL is accessible.
+func IsRemoteReachable(url string) bool {
+	gr := git.New(".")
+	gr.SSHCmd = SSHOpts()
+	_, err := gr.LsRemote(url)
+	return err == nil
 }
 
 // UnsetDefaultRemote unsets the default gin remote in the git configuration.
@@ -592,7 +629,7 @@ func AddRemote(name string, url string) error {
 // RemoveRemote removes a remote from the repository configuration.
 func RemoveRemote(remote string) error {
 	gr := git.New(".")
-	remotes, err := gr.RemoteShow()
+	remotes, err := GetRemotes()
 	if err != nil {
 		return fmt.Errorf("failed to determine configured remotes")
 	}
