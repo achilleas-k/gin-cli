@@ -268,16 +268,6 @@ func (gr *Runner) Push(remote string) chan RepoFileStatus {
 
 	go func() {
 		defer close(pushchan)
-		if gr.IsDirect() {
-			// Set bare false and revert at the end of the function
-			err := gr.SetBare(false)
-			if err != nil {
-				pushchan <- RepoFileStatus{Err: fmt.Errorf("failed to toggle repository bare mode")}
-				return
-			}
-			defer gr.SetBare(true)
-		}
-
 		cmd := gr.Command("push", "--progress", remote)
 		err := cmd.Start()
 		if err != nil {
@@ -309,8 +299,6 @@ func (gr *Runner) Push(remote string) chan RepoFileStatus {
 }
 
 // Add adds paths to git directly (not annex).
-// In direct mode, files that are already in the annex are explicitly ignored.
-// In indirect mode, adding annexed files to git has no effect.
 // The status channel 'addchan' is closed when this function returns.
 // (git add)
 func (gr *Runner) Add(filepaths []string) chan RepoFileStatus {
@@ -319,18 +307,6 @@ func (gr *Runner) Add(filepaths []string) chan RepoFileStatus {
 		defer close(addchan)
 		if len(filepaths) == 0 {
 			return
-		}
-
-		if gr.IsDirect() {
-			// Set bare false and revert at the end of the function
-			err := gr.SetBare(false)
-			if err != nil {
-				addchan <- RepoFileStatus{Err: fmt.Errorf("failed to toggle repository bare mode")}
-				return
-			}
-			defer gr.SetBare(true)
-			// Call addPathsDirect to collect filenames not in annex and deleted files
-			filepaths = gr.gitAddDirect(filepaths)
 		}
 
 		cmdargs := []string{"add", "--verbose", "--"}
@@ -554,15 +530,6 @@ func (gr *Runner) FindRepoRoot(path string) (string, error) {
 // Commit records changes that have been added to the repository with a given message.
 // (git commit)
 func (gr *Runner) Commit(commitmsg string) error {
-	if gr.IsDirect() {
-		// Set bare false and revert at the end of the function
-		err := gr.SetBare(false)
-		if err != nil {
-			return err
-		}
-		defer gr.SetBare(true)
-	}
-
 	cmd := gr.Command("commit", fmt.Sprintf("--message=%s", commitmsg))
 	stdout, stderr, err := cmd.OutputError()
 
@@ -585,17 +552,11 @@ func (gr *Runner) Commit(commitmsg string) error {
 
 // CommitEmpty performs a commit even when there are no new changes added to the index.
 // This is useful for initialising new repositories with a usable HEAD.
-// In indirect mode (non-bare repositories) simply uses git commit with the '--allow-empty' flag.
-// In direct mode it uses git-annex sync.
 // (git commit --allow-empty or git annex sync --commit)
 func (gr *Runner) CommitEmpty(commitmsg string) error {
 	msgarg := fmt.Sprintf("--message=%s", commitmsg)
 	var cmd shell.Cmd
-	if !gr.IsDirect() {
-		cmd = gr.Command("commit", "--allow-empty", msgarg)
-	} else {
-		cmd = gr.AnnexCommand("sync", "--commit", msgarg)
-	}
+	cmd = gr.Command("commit", "--allow-empty", msgarg)
 	stdout, stderr, err := cmd.OutputError()
 	if err != nil {
 		gerr := giterror{
@@ -951,29 +912,6 @@ func (gr *Runner) RevCount(a, b string) (int, error) {
 	return strconv.Atoi(string(stdout))
 }
 
-// IsDirect returns true if the repository in a given path is working in git annex 'direct' mode.
-// If path is not a repository, or is not an initialised annex repository, the result defaults to false.
-// If the path is a repository and no error was raised, the result it cached so that subsequent checks are faster.
-func (gr *Runner) IsDirect() bool {
-	abspath, _ := filepath.Abs(".")
-	if mode, ok := annexmodecache[abspath]; ok {
-		return mode
-	}
-	cmd := gr.Command("config", "--local", "annex.direct")
-	stdout, _, err := cmd.OutputError()
-	if err != nil {
-		// Don't cache this result
-		return false
-	}
-
-	if strings.TrimSpace(string(stdout)) == "true" {
-		annexmodecache[abspath] = true
-		return true
-	}
-	annexmodecache[abspath] = false
-	return false
-}
-
 // mergeAbort aborts an unfinished git merge.
 func (gr *Runner) mergeAbort() {
 	// Here, we run a git status without checking any part of the result. It
@@ -1004,35 +942,6 @@ func (gr *Runner) SetBare(state bool) error {
 		return gerr
 	}
 	return nil
-}
-
-// gitAddDirect determines which files to be added to git when in direct mode.
-// In direct mode, in order to perform a 'git add' operation, the client temporarily disables bare mode in the repository.
-// This has a side effect that annexed files change type (from symlinks to "direct" files), since now git's view of the repository is not modified by annex.
-// This function filters out any files known to annex to avoid re-adding them to git as files.
-// The filtering is done twice:
-// Once against the provided paths in the current directory (recursively) and once more against the output of 'git ls-files <paths>', in order to include any files that might have been deleted.
-func (gr *Runner) gitAddDirect(paths []string) (filtered []string) {
-	// NOTE: Deprecated.  We don't use bare repos anymore (since v7)
-	wichan := gr.AnnexWhereis(paths)
-	var annexfiles []string
-	for wiInfo := range wichan {
-		if wiInfo.Err != nil {
-			continue
-		}
-		annexfiles = append(annexfiles, filepath.Clean(wiInfo.File))
-	}
-	filtered = filterpaths(paths, annexfiles)
-
-	lschan := gr.LsFiles(paths)
-	for gitfile := range lschan {
-		gitfile = filepath.Clean(gitfile)
-		if !stringInSlice(gitfile, annexfiles) && !stringInSlice(gitfile, filtered) {
-			filtered = append(filtered, gitfile)
-		}
-	}
-
-	return
 }
 
 // GetGitVersion returns the version string of the system's git binary.

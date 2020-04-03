@@ -6,7 +6,6 @@ import (
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/config"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/spf13/cobra"
 )
 
@@ -23,19 +22,10 @@ func lock(cmd *cobra.Command, args []string) {
 	if prStyle != psJSON {
 		fmt.Println(":: Locking files")
 	}
-	// lock should do nothing in direct mode
-	// NOTE: Direct mode repositories are deprecated, but we should still look
-	// out for them
-	gr := git.New(".")
-	if gr.IsDirect() {
-		fmt.Print("   Repository is in DIRECT mode: files are always unlocked")
-		return
-	}
 	// TODO: need server config? Just use remotes
 	conf := config.Read()
 	gincl := ginclient.New(conf.DefaultServer)
 	nitems := countItemsLockChange(args)
-
 	lockchan := gincl.LockContent(args)
 	formatOutput(lockchan, prStyle, nitems)
 }

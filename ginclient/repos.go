@@ -864,80 +864,12 @@ func (fs FileStatus) Abbrev() string {
 	}
 }
 
-func lfDirect(paths ...string) (map[string]FileStatus, error) {
-	statuses := make(map[string]FileStatus)
-
-	gr := git.New(".")
-	wichan := gr.AnnexWhereis(paths)
-	for wiInfo := range wichan {
-		if wiInfo.Err != nil {
-			continue
-		}
-		fname := filepath.Clean(wiInfo.File)
-		for _, remote := range wiInfo.Whereis {
-			// if no remotes are "here", the file is NoContent
-			statuses[fname] = NoContent
-			if remote.Here {
-				if len(wiInfo.Whereis) > 1 {
-					statuses[fname] = Synced
-				} else {
-					statuses[fname] = LocalChanges
-				}
-				break
-			}
-		}
+// ListFiles lists the files and directories specified by paths and their sync status.
+func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
+	paths, err := expandglobs(paths, false)
+	if err != nil {
+		return nil, err
 	}
-
-	asargs := paths
-	if len(asargs) == 0 {
-		// AnnexStatus with no arguments defaults to root directory, so we should use "." instead
-		asargs = []string{"."}
-	}
-
-	statuschan := gr.AnnexStatus(asargs)
-	for item := range statuschan {
-		if item.Err != nil {
-			return nil, item.Err
-		}
-		fname := filepath.Clean(item.File)
-		if item.Status == "?" {
-			statuses[fname] = Untracked
-		} else if item.Status == "M" {
-			statuses[fname] = Modified
-		} else if item.Status == "D" {
-			statuses[fname] = Removed
-		}
-	}
-
-	// Unmodified files that are checked into git (not annex) do not show up
-	// Need to run git ls-files, with bare temporarily disabled, and add only files that haven't been added yet
-	gr.SetBare(false)
-	defer gr.SetBare(true)
-	lschan := gr.LsFiles(paths)
-	var gitfiles []string
-	for fname := range lschan {
-		fname = filepath.Clean(fname)
-		if _, ok := statuses[fname]; !ok {
-			statuses[fname] = Synced
-			gitfiles = append(gitfiles, fname)
-		}
-	}
-
-	// git files should be checked against upstream (if it exists) for local commits
-	if len(gitfiles) > 0 {
-		remote, err := DefaultRemote()
-		if err == nil {
-			upstream := fmt.Sprintf("%s/master", remote)
-			diffchan := gr.DiffUpstream(gitfiles, upstream)
-			for fname := range diffchan {
-				statuses[filepath.Clean(fname)] = LocalChanges
-			}
-		}
-	}
-	return statuses, nil
-}
-
-func lfIndirect(paths ...string) (map[string]FileStatus, error) {
 	gr := git.New(".")
 	gr.SSHCmd = SSHOpts()
 
@@ -1080,20 +1012,6 @@ func lfIndirect(paths ...string) (map[string]FileStatus, error) {
 	}
 
 	return statuses, nil
-}
-
-// ListFiles lists the files and directories specified by paths and their sync status.
-func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
-	gr := git.New(".") // TODO: Remove (only needed for IsDirect)
-	paths, err := expandglobs(paths, false)
-	if err != nil {
-		return nil, err
-	}
-	if gr.IsDirect() {
-		// TODO: Remove (deprecated)
-		return lfDirect(paths...)
-	}
-	return lfIndirect(paths...)
 }
 
 // FindRepoRoot returns the absolute path to the root of the repository.

@@ -14,8 +14,6 @@ import (
 
 // General utility functions for the git and git-annex shell commands and their output.
 
-var annexmodecache = make(map[string]bool)
-
 func calcRate(dbytes int, dt time.Duration) string {
 	dtns := dt.Nanoseconds()
 	if dtns <= 0 || dbytes <= 0 {

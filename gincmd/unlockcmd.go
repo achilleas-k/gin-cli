@@ -34,13 +34,6 @@ func unlock(cmd *cobra.Command, args []string) {
 	if prStyle != psJSON {
 		fmt.Println(":: Unlocking files")
 	}
-	// unlock should do nothing in direct mode
-	gr := git.New(".")
-	if gr.IsDirect() {
-		fmt.Print("   Repository is in DIRECT mode: files are always unlocked")
-		return
-	}
-
 	// TODO: Probably doesn't need a server config
 	conf := config.Read()
 	defserver := conf.DefaultServer
