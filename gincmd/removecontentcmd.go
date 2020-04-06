@@ -24,7 +24,7 @@ func remove(cmd *cobra.Command, args []string) {
 		annexVersionNotice()
 	}
 	nitems := 0
-	annexedFiles, err := gincl.ListAnnexedFiles(args...)
+	annexedFiles, err := gincl.ListLocalAnnexedFiles(args...)
 	if err == nil {
 		nitems = len(annexedFiles)
 	}

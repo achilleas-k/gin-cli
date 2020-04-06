@@ -1081,12 +1081,42 @@ func (gincl *Client) DescribeIndex() (string, error) {
 	return changesBuffer.String(), nil
 }
 
-// ListAnnexedFiles returns a list of annexed files that are currently available
+// ListLocalAnnexedFiles returns a list of annexed files that are currently available
 // (have local content) the repository.  The search can be limited by supplying
 // paths.
-func (gincl *Client) ListAnnexedFiles(paths ...string) ([]string, error) {
+func (gincl *Client) ListLocalAnnexedFiles(paths ...string) ([]string, error) {
 	gr := git.New(".")
-	files, err := gr.AnnexFind(paths)
+	files, err := gr.AnnexFind(paths, "here", false, false)
+	if err != nil {
+		return nil, err
+	}
+	fnames := make([]string, len(files))
+	for fname := range files {
+		fnames = append(fnames, fname)
+	}
+	return fnames, nil
+}
+
+// ListLockedFiles returns a list of locked annexed files.  The search can be
+// limited by supplying paths.
+func (gincl *Client) ListLockedFiles(paths ...string) ([]string, error) {
+	gr := git.New(".")
+	files, err := gr.AnnexFind(paths, "", true, false)
+	if err != nil {
+		return nil, err
+	}
+	fnames := make([]string, len(files))
+	for fname := range files {
+		fnames = append(fnames, fname)
+	}
+	return fnames, nil
+}
+
+// ListUnlockedFiles returns a list of unlocked annexed files.  The search can
+// be limited by supplying paths.
+func (gincl *Client) ListUnlockedFiles(paths ...string) ([]string, error) {
+	gr := git.New(".")
+	files, err := gr.AnnexFind(paths, "", false, true)
 	if err != nil {
 		return nil, err
 	}

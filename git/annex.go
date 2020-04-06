@@ -846,10 +846,23 @@ func (gr *Runner) AnnexUnlock(filepaths []string) chan RepoFileStatus {
 
 // AnnexFind lists available annexed files in the current directory.
 // Specifying 'paths' limits the search to files matching a given path.
-// Returned items are indexed by their annex key.
+// Returned items are indexed by their annex key.  Files can also be filtered
+// based on their content location using the 'in' argument.  Specify 'here' to
+// list files that are available locally.  Locked or unlocked files can be
+// filtered with the corresponding boolean flags.  Specifying both locked and
+// unlocked will produce an empty response.
 // (git annex find)
-func (gr *Runner) AnnexFind(paths []string) (map[string]AnnexFindRes, error) {
+func (gr *Runner) AnnexFind(paths []string, in string, locked bool, unlocked bool) (map[string]AnnexFindRes, error) {
 	cmdargs := []string{"find", "--json"}
+	if in != "" {
+		cmdargs = append(cmdargs, fmt.Sprintf("--in=%s", in))
+	}
+	if locked {
+		cmdargs = append(cmdargs, "--locked")
+	}
+	if locked {
+		cmdargs = append(cmdargs, "--unlocked")
+	}
 	if len(paths) > 0 {
 		cmdargs = append(cmdargs, paths...)
 	}

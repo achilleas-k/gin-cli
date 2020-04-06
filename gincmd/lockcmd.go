@@ -25,9 +25,10 @@ func lock(cmd *cobra.Command, args []string) {
 	// TODO: need server config? Just use remotes
 	conf := config.Read()
 	gincl := ginclient.New(conf.DefaultServer)
-	nitems := countItemsLockChange(args)
+	unlockedFiles, err := gincl.ListUnlockedFiles(args...)
+	CheckError(err)
 	lockchan := gincl.LockContent(args)
-	formatOutput(lockchan, prStyle, nitems)
+	formatOutput(lockchan, prStyle, len(unlockedFiles))
 }
 
 // LockCmd sets up the file 'lock' subcommand

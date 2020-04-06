@@ -6,19 +6,8 @@ import (
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/config"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/spf13/cobra"
 )
-
-func countItemsLockChange(paths []string) (count int) {
-	// BUG: Miscalculates number in some cases
-	gr := git.New(".")
-	wichan := gr.AnnexWhereis(paths)
-	for range wichan {
-		count++
-	}
-	return
-}
 
 func unlock(cmd *cobra.Command, args []string) {
 	prStyle := determinePrintStyle(cmd)
@@ -38,9 +27,10 @@ func unlock(cmd *cobra.Command, args []string) {
 	conf := config.Read()
 	defserver := conf.DefaultServer
 	gincl := ginclient.New(defserver)
-	nitems := countItemsLockChange(args)
+	lockedFiles, err := gincl.ListLockedFiles(args...)
+	CheckError(err)
 	unlockchan := gincl.UnlockContent(args)
-	formatOutput(unlockchan, prStyle, nitems)
+	formatOutput(unlockchan, prStyle, len(lockedFiles))
 }
 
 // UnlockCmd sets up the file 'unlock' subcommand
