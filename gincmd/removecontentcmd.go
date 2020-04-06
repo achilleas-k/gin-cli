@@ -6,18 +6,8 @@ import (
 	"github.com/G-Node/gin-cli/ginclient"
 	"github.com/G-Node/gin-cli/ginclient/config"
 	"github.com/G-Node/gin-cli/gincmd/ginerrors"
-	"github.com/G-Node/gin-cli/git"
 	"github.com/spf13/cobra"
 )
-
-func countItemsRemove(paths []string) int {
-	gr := git.New(".")
-	avail, err := gr.AnnexFind(paths)
-	if err != nil {
-		return 0
-	}
-	return len(avail)
-}
 
 func remove(cmd *cobra.Command, args []string) {
 	prStyle := determinePrintStyle(cmd)
@@ -33,7 +23,11 @@ func remove(cmd *cobra.Command, args []string) {
 	case ginclient.UpgradeRequired:
 		annexVersionNotice()
 	}
-	nitems := countItemsRemove(args)
+	nitems := 0
+	annexedFiles, err := gincl.ListAnnexedFiles(args...)
+	if err == nil {
+		nitems = len(annexedFiles)
+	}
 	if prStyle == psProgress {
 		fmt.Println(":: Removing file content")
 	}

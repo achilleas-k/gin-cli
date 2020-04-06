@@ -1081,6 +1081,22 @@ func (gincl *Client) DescribeIndex() (string, error) {
 	return changesBuffer.String(), nil
 }
 
+// ListAnnexedFiles returns a list of annexed files that are currently available
+// (have local content) the repository.  The search can be limited by supplying
+// paths.
+func (gincl *Client) ListAnnexedFiles(paths ...string) ([]string, error) {
+	gr := git.New(".")
+	files, err := gr.AnnexFind(paths)
+	if err != nil {
+		return nil, err
+	}
+	fnames := make([]string, len(files))
+	for fname := range files {
+		fnames = append(fnames, fname)
+	}
+	return fnames, nil
+}
+
 // expandglobs expands a list of globs into paths (files and directories).
 // If strictmatch is true, an error is returned if at least one element of the input slice does not match a real path,
 // otherwise the pattern itself is returned when it matches no existing path.
