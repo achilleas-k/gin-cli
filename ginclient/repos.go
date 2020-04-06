@@ -866,7 +866,7 @@ func (fs FileStatus) Abbrev() string {
 
 // ListFiles lists the files and directories specified by paths and their sync status.
 func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
-	paths, err := expandglobs(paths, false)
+	paths, err := expandglobs(paths, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1085,6 +1085,10 @@ func (gincl *Client) DescribeIndex() (string, error) {
 // (have local content) the repository.  The search can be limited by supplying
 // paths.
 func (gincl *Client) ListLocalAnnexedFiles(paths ...string) ([]string, error) {
+	paths, err := expandglobs(paths, true)
+	if err != nil {
+		return nil, err
+	}
 	gr := git.New(".")
 	files, err := gr.AnnexFind(paths, "here", false, false)
 	if err != nil {
@@ -1100,6 +1104,10 @@ func (gincl *Client) ListLocalAnnexedFiles(paths ...string) ([]string, error) {
 // ListLockedFiles returns a list of locked annexed files.  The search can be
 // limited by supplying paths.
 func (gincl *Client) ListLockedFiles(paths ...string) ([]string, error) {
+	paths, err := expandglobs(paths, true)
+	if err != nil {
+		return nil, err
+	}
 	gr := git.New(".")
 	files, err := gr.AnnexFind(paths, "", true, false)
 	if err != nil {
@@ -1115,6 +1123,10 @@ func (gincl *Client) ListLockedFiles(paths ...string) ([]string, error) {
 // ListUnlockedFiles returns a list of unlocked annexed files.  The search can
 // be limited by supplying paths.
 func (gincl *Client) ListUnlockedFiles(paths ...string) ([]string, error) {
+	paths, err := expandglobs(paths, true)
+	if err != nil {
+		return nil, err
+	}
 	gr := git.New(".")
 	files, err := gr.AnnexFind(paths, "", false, true)
 	if err != nil {
