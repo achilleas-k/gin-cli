@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/G-Node/gin-cli/ginclient/config"
 	"github.com/G-Node/gin-cli/ginclient/log"
@@ -877,54 +878,52 @@ func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
 	statuses := make(map[string]FileStatus)
 
 	var cachedfiles, modifiedfiles, untrackedfiles, deletedfiles []string
+	wg := new(sync.WaitGroup)
 	// Collect checked in files
 	lsfilesargs := append([]string{"--cached"}, paths...)
 	cachedchan := gr.LsFiles(lsfilesargs)
+	wg.Add(1)
 
 	// Collect modified files
 	lsfilesargs = append([]string{"--modified"}, paths...)
 	modifiedchan := gr.LsFiles(lsfilesargs)
+	wg.Add(1)
 
 	// Collect untracked files
 	lsfilesargs = append([]string{"--others"}, paths...)
 	otherschan := gr.LsFiles(lsfilesargs)
+	wg.Add(1)
 
 	// Collect deleted files
 	lsfilesargs = append([]string{"--deleted"}, paths...)
 	deletedchan := gr.LsFiles(lsfilesargs)
+	wg.Add(1)
 
-	// TODO: Use a WaitGroup
-	for {
-		select {
-		case fname, ok := <-cachedchan:
-			if ok {
-				cachedfiles = append(cachedfiles, filepath.Clean(fname))
-			} else {
-				cachedchan = nil
-			}
-		case fname, ok := <-modifiedchan:
-			if ok {
-				modifiedfiles = append(modifiedfiles, filepath.Clean(fname))
-			} else {
-				modifiedchan = nil
-			}
-		case fname, ok := <-otherschan:
-			if ok {
-				untrackedfiles = append(untrackedfiles, filepath.Clean(fname))
-			} else {
-				otherschan = nil
-			}
-		case fname, ok := <-deletedchan:
-			if ok {
-				deletedfiles = append(deletedfiles, filepath.Clean(fname))
-			} else {
-				deletedchan = nil
-			}
+	go func() {
+		for fname := range cachedchan {
+			cachedfiles = append(cachedfiles, filepath.Clean(fname))
 		}
-		if cachedchan == nil && modifiedchan == nil && otherschan == nil && deletedchan == nil {
-			break
+		wg.Done()
+	}()
+	go func() {
+		for fname := range modifiedchan {
+			modifiedfiles = append(modifiedfiles, filepath.Clean(fname))
 		}
-	}
+		wg.Done()
+	}()
+	go func() {
+		for fname := range otherschan {
+			untrackedfiles = append(untrackedfiles, filepath.Clean(fname))
+		}
+		wg.Done()
+	}()
+	go func() {
+		for fname := range deletedchan {
+			deletedfiles = append(deletedfiles, filepath.Clean(fname))
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 
 	if len(cachedfiles) > 0 {
 		// Check for git diffs with upstream
