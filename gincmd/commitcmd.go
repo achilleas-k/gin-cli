@@ -24,7 +24,6 @@ func commit(cmd *cobra.Command, args []string) {
 
 	commitmsg, _ := cmd.Flags().GetString("message")
 
-	// TODO: Exit with error if a path argument is neither a file known to git nor a file in the working tree
 	paths := args
 	if len(paths) > 0 {
 		if prStyle == psDefault {

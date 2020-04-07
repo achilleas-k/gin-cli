@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -602,34 +601,26 @@ func (gr *Runner) DiffUpstream(paths []string, upstream string) chan string {
 	return diffchan
 }
 
-// LsFiles lists all files known to git.
-// The output channel 'lschan' is closed when this function returns.
+// LsFiles lists all files known to git with their status.  The function
+// automatically splits the output and returns each file name separately.  If
+// any other information is requested (by including more flags), it is returned
+// as part of the filename string.
 // (git ls-files)
-func (gr *Runner) LsFiles(args []string) chan string {
-	// TODO: Rethink this function: goroutine necessary?
-	// Making it a regular function would let us return (and handle) errors
-	lschan := make(chan string)
+func (gr *Runner) LsFiles(args []string) ([]string, error) {
+	cmdargs := append([]string{"ls-files", "-z"}, args...)
+	cmd := gr.Command(cmdargs...)
+	stdout, _, err := cmd.OutputError()
+	if err != nil {
+		return nil, err
+	}
 
-	go func() {
-		defer close(lschan)
-		cmdargs := append([]string{"ls-files"}, args...)
-		cmd := gr.Command(cmdargs...)
-		err := cmd.Start()
-		if err != nil {
-			return
-		}
-		var line string
-		var rerr error
-		for rerr = nil; rerr == nil; line, rerr = cmd.OutReader.ReadString('\n') {
-			line = strings.TrimSuffix(line, "\n")
-			if line != "" {
-				lschan <- line
-			}
-		}
+	if len(stdout) == 0 {
+		// Return empty output to avoid sending single empty string in slice
+		return nil, nil
+	}
 
-		cmd.Wait()
-	}()
-	return lschan
+	// Trim trailing null character from output otherwise we end up with an extra empty element
+	return strings.Split(strings.TrimSuffix(string(stdout), "\000"), "\000"), nil
 }
 
 // Log returns the commit logs for the repository.

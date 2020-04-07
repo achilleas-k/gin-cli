@@ -256,7 +256,7 @@ func Add(paths []string) chan git.RepoFileStatus {
 	}
 	go func() {
 		defer close(addchan)
-		paths, err := expandglobs(paths, false)
+		paths, err := expandGitPaths(paths, true)
 		if err != nil {
 			addchan <- git.RepoFileStatus{Err: err}
 			return
@@ -867,65 +867,32 @@ func (fs FileStatus) Abbrev() string {
 
 // ListFiles lists the files and directories specified by paths and their sync status.
 func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
-	paths, err := expandglobs(paths, true)
-	if err != nil {
-		return nil, err
-	}
 	gr := git.New(".")
 	gr.SSHCmd = SSHOpts()
 
+	exppaths, err := expandGitPaths(paths, true)
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO: Determine if added files (LocalChanges) are new or not (new status needed?)
-	statuses := make(map[string]FileStatus)
 
-	var cachedfiles, modifiedfiles, untrackedfiles, deletedfiles []string
+	statusFileMap := make(map[string][]string, 4)
+	statusFileMap["cached"] = exppaths
 	wg := new(sync.WaitGroup)
-	// Collect checked in files
-	lsfilesargs := append([]string{"--cached"}, paths...)
-	cachedchan := gr.LsFiles(lsfilesargs)
-	wg.Add(1)
-
-	// Collect modified files
-	lsfilesargs = append([]string{"--modified"}, paths...)
-	modifiedchan := gr.LsFiles(lsfilesargs)
-	wg.Add(1)
-
-	// Collect untracked files
-	lsfilesargs = append([]string{"--others"}, paths...)
-	otherschan := gr.LsFiles(lsfilesargs)
-	wg.Add(1)
-
-	// Collect deleted files
-	lsfilesargs = append([]string{"--deleted"}, paths...)
-	deletedchan := gr.LsFiles(lsfilesargs)
-	wg.Add(1)
-
-	go func() {
-		for fname := range cachedchan {
-			cachedfiles = append(cachedfiles, filepath.Clean(fname))
-		}
-		wg.Done()
-	}()
-	go func() {
-		for fname := range modifiedchan {
-			modifiedfiles = append(modifiedfiles, filepath.Clean(fname))
-		}
-		wg.Done()
-	}()
-	go func() {
-		for fname := range otherschan {
-			untrackedfiles = append(untrackedfiles, filepath.Clean(fname))
-		}
-		wg.Done()
-	}()
-	go func() {
-		for fname := range deletedchan {
-			deletedfiles = append(deletedfiles, filepath.Clean(fname))
-		}
-		wg.Done()
-	}()
+	for _, status := range []string{"modified", "others", "deleted"} {
+		go func(status string) {
+			wg.Add(1)
+			args := append([]string{fmt.Sprintf("--%s", status), "--"}, paths...)
+			files, _ := gr.LsFiles(args)
+			statusFileMap[status] = files
+			wg.Done()
+		}(status)
+	}
 	wg.Wait()
 
-	if len(cachedfiles) > 0 {
+	statuses := make(map[string]FileStatus)
+	if len(statusFileMap["cached"]) > 0 {
 		// Check for git diffs with upstream
 		noremotes := true
 		remote, rerr := DefaultRemote()
@@ -937,12 +904,12 @@ func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
 			}
 		}
 		if noremotes {
-			for _, fname := range cachedfiles {
+			for _, fname := range statusFileMap["cached"] {
 				statuses[fname] = LocalChanges
 			}
 		} else if rerr == nil {
 			upstream := fmt.Sprintf("%s/master", remote) // TODO: Don't assume master; use current branch name
-			diffchan := gr.DiffUpstream(cachedfiles, upstream)
+			diffchan := gr.DiffUpstream(statusFileMap["cached"], upstream)
 			for fname := range diffchan {
 				fname = filepath.Clean(fname)
 				// Two notes:
@@ -953,7 +920,7 @@ func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
 		}
 
 		// Run whereis on cached files (if any) to see if content is synced for annexed files
-		wichan := gr.AnnexWhereis(cachedfiles)
+		wichan := gr.AnnexWhereis(statusFileMap["cached"])
 		for wiInfo := range wichan {
 			if wiInfo.Err != nil {
 				continue
@@ -974,18 +941,17 @@ func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
 				}
 			}
 		}
-
 	}
 
 	// Add leftover cached files to the map
-	for _, fname := range cachedfiles {
+	for _, fname := range statusFileMap["cached"] {
 		if _, ok := statuses[fname]; !ok {
 			statuses[fname] = Synced
 		}
 	}
 
 	// Add modified and untracked files to the map
-	for _, fname := range modifiedfiles {
+	for _, fname := range statusFileMap["modified"] {
 		statuses[fname] = Modified
 	}
 
@@ -1001,12 +967,12 @@ func (gincl *Client) ListFiles(paths ...string) (map[string]FileStatus, error) {
 	}
 
 	// Add untracked files to the map
-	for _, fname := range untrackedfiles {
+	for _, fname := range statusFileMap["others"] {
 		statuses[fname] = Untracked
 	}
 
 	// Add deleted files to the map
-	for _, fname := range deletedfiles {
+	for _, fname := range statusFileMap["deleted"] {
 		statuses[fname] = Removed
 	}
 
@@ -1166,6 +1132,36 @@ func expandglobs(paths []string, strictmatch bool) (globexppaths []string, err e
 		globexppaths = append(globexppaths, exp...)
 	}
 	return
+}
+
+// expandGitPaths expands a list of globs into paths (files and directories)
+// using expandglobs then checks the resulting paths against files known to git
+// and untracked files in the working tree.  If strictmatch is true, an error
+// is returned if at least one element of the input slice does not match.
+// The returned list contains all matching file paths.
+func expandGitPaths(paths []string, strictmatch bool) ([]string, error) {
+	// run regular expandglobs and ignore errors
+	unglobbed, _ := expandglobs(paths, false)
+
+	// run LsFiles with all selectors
+	var args []string
+	if strictmatch {
+		args = []string{"--error-unmatch"}
+	}
+	args = append(args, "--")
+	args = append(args, unglobbed...)
+	gr := git.New(".")
+
+	fileStats, err := gr.LsFiles(args)
+	if err != nil {
+		return nil, err
+	}
+	exppaths := make([]string, len(fileStats))
+	for idx, fname := range fileStats {
+		exppaths[idx] = fname
+	}
+
+	return exppaths, nil
 }
 
 // Checkwd checks whether the current working directory is in a git repository.
