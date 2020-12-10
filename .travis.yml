@@ -13,10 +13,10 @@ env:
 
 matrix:
   include:
-    - go: "1.14.x"
-      os: linux
-    - go: tip
-      os: linux
+    # - go: "1.14.x"
+    #   os: linux
+    # - go: tip
+    #   os: linux
     - go: "1.14.x"
       os: osx
       osx_image: xcode12.2
