@@ -219,7 +219,7 @@ func TestStuff(t *testing.T) {
 		makeRandFile(fmt.Sprintf("root-%d.git", idx), 5)
 	}
 	for idx := 70; idx < 90; idx++ {
-		makeRandFile(fmt.Sprintf("root-%d.annex", idx), 2000)
+		makeRandFile(fmt.Sprintf("root-%d.annex", idx), 20000)
 	}
 	assertStatus(t, ".", filestatus, "Initial file creation")
 
@@ -241,6 +241,32 @@ func TestStuff(t *testing.T) {
 	if count := revCount(t); count != 2 {
 		t.Fatalf("error: Expected 2 revisions, got %d", count)
 	}
+
+	// Create more root files that will remain UNTRACKED
+	for _, idx := range []string{"a", "b", "c", "d", "e", "f"} {
+		makeRandFile(fmt.Sprintf("root-file-%s.untracked", idx), 5)
+	}
+	filestatus[ginclient.Untracked] += 6
+	assertStatus(t, ".", filestatus, "Untracked file creation")
+
+	// // Lock all annexed files
+	err = runSubcommand(LockCmd(), ".")
+	errcheck(t, err)
+	filestatus[ginclient.TypeChange] += 20
+	filestatus[ginclient.Synced] -= 20
+	assertStatus(t, ".", filestatus, "Lock all files")
+
+	// // Commit typechange
+	err = runSubcommand(CommitCmd())
+	filestatus[ginclient.Synced] += 20
+	filestatus[ginclient.TypeChange] -= 20
+	assertStatus(t, ".", filestatus, "Commit typechange (lock all files)")
+
+	// Modify all tracked files
+	err = runSubcommand(UnlockCmd(), ".")
+	filestatus[ginclient.TypeChange] += 20
+	filestatus[ginclient.Synced] -= 20
+	assertStatus(t, ".", filestatus, "Unlock all files before modification")
 	return
 }
 
