@@ -59,7 +59,7 @@ script:
           ./tests/run-all-tests;
       else
           pushd tests;
-          python3 -m pytest -vk "offline";
+          python3 -m pytest -x -vk "offline";
           popd;
       fi;
     fi
