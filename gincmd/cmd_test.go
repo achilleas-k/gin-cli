@@ -57,7 +57,7 @@ func makeRandFile(name string, size uint64) error {
 	return nil
 }
 
-func assertStatus(t *testing.T, path string, expected map[ginclient.FileStatus]int) {
+func assertStatus(t *testing.T, path string, expected map[ginclient.FileStatus]int, msg string) {
 	gincl := ginclient.New(testalias)
 	filestatus, err := gincl.ListFiles(path)
 	errcheck(t, err)
@@ -68,10 +68,15 @@ func assertStatus(t *testing.T, path string, expected map[ginclient.FileStatus]i
 		actual[status]++
 	}
 
+	fail := false
 	for status := range expected {
 		if actual[status] != expected[status] {
-			t.Fatalf("File status assertion failed")
+			fmt.Printf("File status count mismatch: %s %d != %d\n", status.Abbrev(), actual[status], expected[status])
+			fail = true
 		}
+	}
+	if fail {
+		t.Fatalf("File status assertion failed: %s", msg)
 	}
 }
 
@@ -216,21 +221,21 @@ func TestStuff(t *testing.T) {
 	for idx := 70; idx < 90; idx++ {
 		makeRandFile(fmt.Sprintf("root-%d.annex", idx), 2000)
 	}
-	assertStatus(t, ".", filestatus)
+	assertStatus(t, ".", filestatus, "Initial file creation")
 
 	// Commit and check status
 	err = runSubcommand(CommitCmd(), "root*")
 	errcheck(t, err)
 	filestatus[ginclient.LocalChanges] += 70
 	filestatus[ginclient.Untracked] -= 70
-	assertStatus(t, ".", filestatus)
+	assertStatus(t, ".", filestatus, "First commit")
 
 	// Upload and check status
 	err = runSubcommand(UploadCmd())
 	errcheck(t, err)
 	filestatus[ginclient.Synced] += 70
 	filestatus[ginclient.LocalChanges] -= 70
-	assertStatus(t, ".", filestatus)
+	assertStatus(t, ".", filestatus, "First ")
 
 	// gin upload command should not have created an extra commit
 	if count := revCount(t); count != 2 {
