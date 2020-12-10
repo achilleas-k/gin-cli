@@ -48,6 +48,7 @@ install:
   - go vet ./...
   # - golint ./...
   - gofmt -s -l .
+  - pip3 install requests
 
 script:
   - make testbuild
@@ -63,6 +64,7 @@ script:
           popd;
       fi;
     fi
+  - python3 ./tests/scripts/pushtogist.py ./tests/log
 
 after_failure:
   # upload logs to gist.github.com
